@@ -26,45 +26,30 @@ def to_cart(homog):
     return homog[0:m - 1, :] / np.tile([homog[m - 1, :]], (m - 1, 1))
 
 
-def pick_equidistant_frames(video_cap, frame_count):
-    total_frames = int(video_cap.get(cv.CAP_PROP_FRAME_COUNT))
-    step = total_frames // frame_count
-
+def pick_frames(video_cap, frame_indices, convert_to_rgb=False):
+    frame_count = len(frame_indices)
     frames = [None] * frame_count
 
-    curr_frame = 0
     for i in range(frame_count):
-        video_cap.set(cv.CAP_PROP_POS_FRAMES, curr_frame)
+        video_cap.set(cv.CAP_PROP_POS_FRAMES, frame_indices[i])
         ret, frame = video_cap.read()
         # TODO: Check ret
+        if convert_to_rgb:
+            frame = cv.cvtColor(frame, cv.COLOR_BGR2RGB)
         frames[i] = frame
-        curr_frame += step
 
     return frames
 
 
-def apply_brightness_contrast(in_frame, brightness=0, contrast=0):
-    if brightness != 0:
-        if brightness > 0:
-            shadow = brightness
-            highlight = 255
-        else:
-            shadow = 0
-            highlight = 255 + brightness
-        alpha_b = (highlight - shadow) / 255
-        gamma_b = shadow
+def pick_equidistant_frames(video_cap, frame_count, convert_to_rgb=False):
+    total_frames = int(video_cap.get(cv.CAP_PROP_FRAME_COUNT))
+    step = total_frames // frame_count
+    return pick_frames(video_cap, [i * step for i in range(frame_count)], convert_to_rgb=convert_to_rgb)
 
-        out_frame = cv.addWeighted(in_frame, alpha_b, in_frame, 0, gamma_b)
-    else:
-        out_frame = in_frame.copy()
 
-    if contrast != 0:
-        f = 131 * (contrast + 127) / (127 * (131 - contrast))
-        alpha_c = f
-        gamma_c = 127 * (1 - f)
-
-        out_frame = cv.addWeighted(out_frame, alpha_c, out_frame, 0, gamma_c)
-
+def apply_brightness_contrast(in_frame, brightness=0, contrast=1.0):
+    out_frame = (in_frame + brightness) * contrast
+    out_frame = np.clip(out_frame, 0, 255).astype(np.uint8)
     return out_frame
 
 
@@ -73,9 +58,33 @@ def save_intrinsics(file_path, cam_matrix, dist_coeffs):
     assert cam_matrix.shape == (3, 3)
     assert dist_coeffs.shape == (5,)
 
-    json_data = {
+    data = {
         'cam_matrix': cam_matrix.tolist(),
         'dist_coeffs': dist_coeffs.tolist()
     }
     with open(file_path, 'w') as file:
-        json.dump(json_data, file)
+        json.dump(data, file)
+
+
+def load_intrinsics(file_path):
+    with open(file_path) as file:
+        data = json.load(file)
+
+    cam_matrix = np.array(data['cam_matrix'])
+    dist_coeffs = np.array(data['dist_coeffs'])
+
+    return cam_matrix, dist_coeffs
+
+
+def undistort_line(line, cam_matrix, dist_coeffs, new_cam_matrix):
+    cv_points = np.expand_dims(line.T, axis=0).astype(np.float32)
+    new_line = cv.undistortPoints(cv_points,
+                                  cam_matrix,
+                                  dist_coeffs,
+                                  P=new_cam_matrix
+                                  )[0].T
+
+    new_line[0, :] = new_line[0, :]
+    new_line[1, :] = new_line[1, :]
+
+    return new_line
