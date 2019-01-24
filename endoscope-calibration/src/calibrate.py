@@ -59,12 +59,12 @@ def get_detected_chessboard_points(video_cap, cb_size, frames_with_pattern=30, t
     return world_points, img_points
 
 
-def calculate_camera_intrinsics(world_points, img_points, sample_frame):
+def calculate_camera_intrinsics(points_3d, points_2d, sample_frame):
     (ret,
      cam_matrix,
      dist_coeffs,
      rvecs,
-     tvecs) = cv.calibrateCamera(world_points, img_points, sample_frame.shape[:2], None, None)
+     tvecs) = cv.calibrateCamera(points_3d, points_2d, sample_frame.shape[:2], None, None)
     return cam_matrix, dist_coeffs, rvecs, tvecs
 
 
@@ -80,7 +80,7 @@ def calc_best_homography(points_1_cart, points_2_cart):
     :param points_2_cart: `d x n` matrix
     :return:
     """
-    n = points_1_cart[1]
+    n = points_1_cart.shape[1]
     points_1_hom = util.to_homog(points_1_cart)
     points_2_hom = util.to_homog(points_2_cart)
 
@@ -101,10 +101,10 @@ def calc_best_homography(points_1_cart, points_2_cart):
 
 # Goal of function is to estimate pose of plane relative to camera (extrinsic matrix)
 # given points in image xImCart, points in world XCart and intrinsic matrix K
-def estimate_plane_pos(img_points_cart, world_points_cart, cam_matrix):
-    img_points_hom = util.to_homog(img_points_cart)
+def estimate_plane_pos(points_cart_3d, points_cart_2d, cam_matrix):
+    img_points_hom = util.to_homog(points_cart_2d)
     cam_points_hom = np.linalg.inv(cam_matrix) @ img_points_hom
-    H = calc_best_homography(world_points_cart[0:2, :], util.to_cart(cam_points_hom))
+    H = calc_best_homography(points_cart_3d[0:2, :], util.to_cart(cam_points_hom))
 
     # Estimate first two columns of rotation matrix R from the first two
     # columns of H using the SVD
