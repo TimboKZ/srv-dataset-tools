@@ -19,7 +19,7 @@ def to_homog(cart):
                  of dimensions and `n` is the number of points
     :return: Homogeneous coordinates as a `(m+1) x n` matrix
     """
-    return np.concatenate((cart, np.ones((1, cart.shape[1]))), axis=0)
+    return np.vstack((cart, np.ones((1, cart.shape[1]))))
 
 
 def to_cart(homog):
@@ -57,27 +57,129 @@ def apply_brightness_contrast(in_frame, brightness=0, contrast=1.0):
     return out_frame
 
 
-def save_intrinsics(file_path, cam_matrix, dist_coeffs):
-    dist_coeffs = dist_coeffs.flatten()
-    assert cam_matrix.shape == (3, 3)
-    assert dist_coeffs.shape == (5,)
-
-    data = {
-        'cam_matrix': cam_matrix.tolist(),
-        'dist_coeffs': dist_coeffs.tolist()
-    }
+def save_dict(file_path, data):
     with open(file_path, 'w') as file:
         json.dump(data, file)
 
 
-def load_intrinsics(file_path):
+def load_dict(file_path):
     with open(file_path) as file:
         data = json.load(file)
+    return data
 
-    cam_matrix = np.array(data['cam_matrix'])
-    dist_coeffs = np.array(data['dist_coeffs'])
 
-    return cam_matrix, dist_coeffs
+def save_intrinsics(file_path, cam_matrix=None, dist_coeffs=None, width=None, height=None):
+    if cam_matrix is not None:
+        assert cam_matrix.shape == (3, 3)
+    if dist_coeffs is not None:
+        dist_coeffs = dist_coeffs.flatten()
+        assert dist_coeffs.shape == (5,)
+
+    def prep_array(array):
+        if array is None:
+            return None
+        return array.tolist()
+
+    data = {
+        'cam_matrix': prep_array(cam_matrix),
+        'dist_coeffs': prep_array(dist_coeffs),
+        'width': width,
+        'height': height,
+    }
+    save_dict(file_path, data)
+
+
+def load_intrinsics(file_path):
+    data = load_dict(file_path)
+
+    def prep_array(array):
+        if array is None:
+            return None
+        return np.array(array)
+
+    cam_matrix = prep_array(data.get('cam_matrix'))
+    dist_coeffs = prep_array(data.get('dist_coeffs'))
+    width = data.get('width')
+    height = data.get('height')
+    return cam_matrix, dist_coeffs, width, height
+
+
+def save_extrinsics(file_path, transform=None, endoscope_markers=None):
+    if endoscope_markers is not None:
+        assert endoscope_markers.shape[0] == 3
+    if transform is not None:
+        assert transform.shape == (4, 4)
+
+    def prep_array(array):
+        if array is None:
+            return None
+        return array.tolist()
+
+    data = {
+        'transform': prep_array(transform),
+        'endoscope_markers': prep_array(endoscope_markers),
+    }
+    save_dict(file_path, data)
+
+
+def load_extrinsics(file_path):
+    data = load_dict(file_path)
+
+    def prep_array(array):
+        if array is None:
+            return None
+        return np.array(array)
+
+    transform = prep_array(data.get('transform'))
+    endoscope_markers = prep_array(data.get('endoscope_markers'))
+    return transform, endoscope_markers
+
+
+def to_transform(rot_matrix=None, trans_vec=None):
+    if rot_matrix is not None:
+        assert rot_matrix.shape == (3, 3)
+    if trans_vec is not None:
+        assert trans_vec.size == 3
+
+    T = np.eye(4)
+    if rot_matrix is not None:
+        T[0:3, 0:3] = rot_matrix
+    if trans_vec is not None:
+        T[0:3, 3] = trans_vec.flatten()
+    return T
+
+
+def apply_transform(cart_points, transform):
+    """
+    Rotates the points around their centroid
+    d - number of dimensions
+    n - number of points
+
+    :param cart_points: `d x n` array of cartesian points
+    :param transform:
+    :return:
+    """
+    assert transform.shape == (4, 4)
+
+    homog_points = transform @ to_homog(cart_points)
+    return to_cart(homog_points)
+
+
+def center_rot(points, rot_matrix):
+    """
+    Rotates the points around their centroid
+    d - number of dimensions
+    n - number of points
+
+    :param points: `d x n` array of points
+    :param rot_matrix: `d x d` rotation matrix
+    :return:
+    """
+
+    center = np.mean(points, axis=1)
+    result = rot_matrix @ (points.T - center).T
+    result = (result.T + center).T
+    return result
 
 
 def undistort_line(line, cam_matrix, dist_coeffs, new_cam_matrix):
@@ -88,9 +190,8 @@ def undistort_line(line, cam_matrix, dist_coeffs, new_cam_matrix):
                                   P=new_cam_matrix
                                   )[0].T
 
-    new_line[0, :] = new_line[0, :]
-    new_line[1, :] = new_line[1, :]
-
+    # new_line[0, :] = new_line[0, :]
+    # new_line[1, :] = new_line[1, :]
     return new_line
 
 
@@ -174,18 +275,27 @@ def draw_3d_points(ax, points, colour=None, size=10, connect=False, connect_colo
         ax.add_collection3d(face)
 
 
-def draw_3d_camera(ax, w, h, cam_matrix, R, t, z=20):
-    R_inv = np.linalg.inv(R)
-    cam_orig = np.zeros((3, 1))
+def draw_3d_camera(ax, width, height, cam_matrix, T, z=20):
+    """
+    Given a 3D PyPlot axis, visualises the viewport of the
+    specified camera.
 
+    :param ax: PyPlot axis
+    :param width: camera image width
+    :param height: camera image height
+    :param cam_matrix: `3 x 3` camera intrinsics matrix
+    :param T: `4 x 4` transform matrix from camera coordinates to world coordinates
+    :param z: depth at which to draw the image plane
+    :return:
+    """
     fx = cam_matrix[0, 0]
     fy = cam_matrix[1, 1]
     cx = cam_matrix[0, 2]
     cy = cam_matrix[1, 2]
 
     img_corners = np.array([
-        [0, w, w, 0],
-        [0, 0, h, h]
+        [0, width, width, 0],
+        [0, 0, height, height]
     ]).astype(float)
     img_corners[0, :] *= z
     img_corners[1, :] *= z
@@ -197,8 +307,11 @@ def draw_3d_camera(ax, w, h, cam_matrix, R, t, z=20):
     cam_corners[1, :] /= fy
     cam_corners = np.vstack([cam_corners, np.repeat(z, 4)])
 
-    cam = R_inv @ (cam_orig - t).reshape(3, 1)
-    world_corners = R_inv @ (cam_corners.T - t.T).T
+    cam_orig = np.zeros((3, 1))
+    cam = apply_transform(cam_orig, T)
+    # cam = R @ cam_orig + t
+    world_corners = apply_transform(cam_corners, T)
+    # world_corners = R @ cam_corners + t
 
     for i in range(4):
         corners = np.hstack([world_corners[:, [i, (i + 1) % 4]], cam])
@@ -250,7 +363,7 @@ def draw_3d_plane(ax, width, height, normal, point=None, centre=None):
     ax.plot_surface(xs, ys, zs, alpha=0.2)
 
 
-if __name__ == '__main__':
+def main():
     np.set_printoptions(precision=4, suppress=True)
 
     points = np.array([[-32.01155603, -11.87633243, 33.31950959, 37.93984299, -2.32206122, -25.0494029],
@@ -270,3 +383,7 @@ if __name__ == '__main__':
     print('new_normal =', new_normal)
 
     print(repr(rot @ points))
+
+
+if __name__ == '__main__':
+    main()

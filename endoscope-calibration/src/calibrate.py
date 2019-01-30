@@ -1,6 +1,7 @@
 from os import path
 import numpy as np
 import cv2 as cv
+import pycpd
 import sys
 
 # Necessary to make sure this code works when imported into a Jupyter notebook
@@ -135,3 +136,53 @@ def estimate_plane_pos(points_cart_3d, points_cart_2d, cam_matrix):
         R[:, 1] *= -1
 
     return R, t
+
+
+def calc_rigid_body_transform(from_pts, to_pts):
+    """
+    Calculates the transform between two point clouds - note that no
+    correspondence between the point clouds is required, the points
+    can be provided in any order.
+    d - number of dimensions
+    n - number of points
+
+    :param from_pts: `d x n` matrix
+    :param to_pts: `d x n` matrix
+    :return: transformation matrix
+    """
+    from_cent = np.mean(from_pts, axis=1)
+    to_cent = np.mean(to_pts, axis=1)
+
+    R, _, _ = calc_rot_without_correspondence(from_pts, to_pts)
+    t = to_cent - from_cent
+    T2 = util.to_transform(R, t)
+
+    # Recall that our R only works for zero-centred point
+    # clouds, so need to include that into transform
+    T1 = util.to_transform(trans_vec=-from_cent)
+
+    return T2 @ T1
+
+
+def calc_rot_without_correspondence(from_pts, to_pts):
+    """
+    Calculates the rotation between two point clouds - note that no correspondence between
+    the point clouds is required, the points can be provided in any order.
+    d - number of dimensions
+    n - number of points
+
+    :param from_pts: `d x n` matrix
+    :param to_pts: `d x n` matrix
+    :return: rotation matrix, translation vector, scale
+    """
+    from_cent = np.mean(from_pts, axis=1)
+    to_cent = np.mean(to_pts, axis=1)
+
+    params = {
+        'X': from_pts.T - from_cent,
+        'Y': to_pts.T - to_cent,
+    }
+
+    cpd = pycpd.rigid_registration(**params)
+    TY, (s, R, t) = cpd.register()
+    return R, t, s
