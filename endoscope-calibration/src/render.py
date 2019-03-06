@@ -50,25 +50,33 @@ class RenderApp(ShowBase):
     def init_scene(self, R, t, cam_matrix, phantom_model_path, endoscope_markers_path=None):
         render = self.render
 
-        dlight = DirectionalLight('dlight')
-        dlight.setColor(VBase4(0.8, 0.8, 0.5, 1) * 0.5)
-        dlnp = render.attachNewNode(dlight)
-        dlnp.setHpr(0, 60, 0)
-        render.setLight(dlnp)
+        # dlight = DirectionalLight('dlight')
+        # dlight.setColor(VBase4(1, 1, 1, 1) * 0.5)
+        # dlnp = render.attachNewNode(dlight)
+        # dlnp.setHpr(0, 60, 0)
+        # render.setLight(dlnp)
 
-        alight = AmbientLight('alight')
-        alight.setColor(VBase4(0.2, 0.2, 0.2, 1))
-        alnp = render.attachNewNode(alight)
-        render.setLight(alnp)
+        # Enable render shaders
+        render.setShaderAuto()
+
+        # Add a point light to where the origin of the camera
+        plight = PointLight('plight')
+        plight.setColor(VBase4(0.2, 0.2, 0.2, 1))
+        plight.setAttenuation((1, 0, 0.001))
+        plight.setShadowCaster(True, 512, 512)
+        plnp = render.attachNewNode(plight)
+        plnp.setPos(t[0], t[1], t[2])
+        render.setLight(plnp)
 
         # Load phantom model and set material
         phantom_model = self.loader.loadModel(phantom_model_path)
         phantom_model.reparentTo(render)
 
-        myMaterial = Material()
-        myMaterial.setShininess(10.0)  # Make this material shiny
-        myMaterial.setAmbient((0, 0, 0, 1))  # Make this material blue
-        phantom_model.setMaterial(myMaterial)
+        phantom_material = Material()
+        phantom_material.setShininess(20.0)
+        phantom_material.setAmbient((0, 0, 0, 1))
+        phantom_material.setDiffuse((1, 0, 0, 1))
+        phantom_model.setMaterial(phantom_material)
 
         # Load endoscope markers - these are optional because they might not even be visible in the shot, and they don't
         # give us any useful information about the scene.
@@ -79,9 +87,9 @@ class RenderApp(ShowBase):
         self.disableMouse()
 
         # Set camera pose - not that we need to add 90 to pitch for the camera to be aligned correctly.
-        eulerDegrees = np.rad2deg(tf.rot_matrix_to_euler(R))
-        adjustEulerDegrees = np.array([0., 90., 0.]) + eulerDegrees
-        self.camera.setHpr(adjustEulerDegrees[0], adjustEulerDegrees[1], adjustEulerDegrees[2])
+        euler_degrees = np.rad2deg(tf.rot_matrix_to_euler(R))
+        fixed_euler_degrees = np.array([0., 90., 0.]) + euler_degrees
+        self.camera.setHpr(fixed_euler_degrees[0], fixed_euler_degrees[1], fixed_euler_degrees[2])
         self.camera.setPos(t[0], t[1], t[2])
 
         # Find camera object and set aspect ratio and focal length
@@ -90,8 +98,9 @@ class RenderApp(ShowBase):
         lens = self.realCamera.getLens()
         aspect_ratio = self.width / self.height
         f_x, f_y = cam_matrix[0, 0], cam_matrix[1, 1]
-        focal_length = (f_x / self.width + f_y / self.height) / 2
-        # focal_length = f_x / self.width
+        # TODO: Determine a better (correct) formula for the focal length
+        # focal_length = (f_x / self.width + f_y / self.height) / 2
+        focal_length = f_x / self.width
         lens.setAspectRatio(aspect_ratio)
         lens.setFocalLength(focal_length)
 
