@@ -13,7 +13,6 @@ script_dir = path.dirname(path.realpath(__file__))
 sys.path.append(script_dir)
 
 # Our local modules
-import util
 import transform as tf
 
 
@@ -44,7 +43,6 @@ class RenderApp(ShowBase):
         props.setFixedSize(True)
         self.win.requestProperties(props)
 
-        self.temp = 0
         self.realCamera = None
 
     def init_scene(self, R, t, cam_matrix, phantom_model_path, endoscope_markers_path=None):
@@ -125,7 +123,6 @@ def generate_render(width, height, T_cam_to_world, cam_matrix, phantom_model_pat
 
     # Save file into a temp directory
     temp_screenshot_file = path.join(tempfile.gettempdir(), 'src-temp-capture-{}.png'.format(np.random.randint(1000)))
-    p3d_filename = Filename(temp_screenshot_file)
     app.screenshot(temp_screenshot_file, defaultFilename=False)
 
     # Shutdown the graphics engine
