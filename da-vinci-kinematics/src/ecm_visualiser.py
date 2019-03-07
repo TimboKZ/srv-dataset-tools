@@ -28,25 +28,62 @@ class EcmRenderApp(ShowBase):
         self.realCamera = None
 
         self.ecm = None
+        self.ecm_cube = None
         self.psms = [None] * 3
+
+        self.angle = 0
 
     def init_scene(self):
         render = self.render
+
+        # Find camera object and set aspect ratio and focal length
+        for obj in self.camera.getChildren():
+            self.realCamera = obj.node()
+        lens = self.realCamera.getLens()
+        lens.setFocalLength(2)
 
         # Enable render shaders
         render.setShaderAuto()
 
         # Create ECM and PSM objects
-        self.ecm = self.loader.loadModel('models/box')
+        self.ecm = NodePath("ecm")
         self.ecm.reparent_to(render)
+
+        self.ecm_cube = self.loader.loadModel('models/box')
+        self.ecm_cube.reparent_to(self.ecm)
+        self.ecm_cube.setScale(0.5)
+        self.ecm_cube.setPos(0, 0, 0)
+
         for i in range(3):
             psm = self.loader.loadModel('models/box')
-            psm.setScale(0.5)
+            psm.setScale(0.3)
             psm.reparent_to(self.ecm)
             self.psms[i] = psm
 
         # Hide the inactive PSM for the time being
         self.psms[2].hide()
+
+        # Set materials for visible objects
+        self.toggleTexture()
+        self.ecm.setColor(1, 0, 0, 1)
+        self.psms[0].setColor(0, 1, 0, 1)
+        self.psms[1].setColor(0, 0, 1, 1)
+
+        # Add an ambient light to make things brighter
+        alight = AmbientLight('alight')
+        alight.setColor(VBase4(0.2, 0.2, 0.2, 1))
+        alnp = render.attachNewNode(alight)
+        render.setLight(alnp)
+
+        # Add a point light to the tip of ECM
+        plight = PointLight('plight')
+        plight.setColor(VBase4(0.2, 0.2, 0.2, 1))
+        plight.setAttenuation((1, 0, 0.001))
+        # plight.setShadowCaster(True, 512, 512)
+        plnp = render.attachNewNode(plight)
+        plnp.reparentTo(self.ecm)
+        plnp.setPos(0, 0, 0)
+        render.setLight(plnp)
 
         # Set camera position
         self.trackball.node().setPos(0, 60, 0)
@@ -55,25 +92,20 @@ class EcmRenderApp(ShowBase):
         self.accept(LoadFrameEventName, self.load_frame)
         self.accept(ShutdownEventName, self.shutdown_and_destroy)
 
+        # Move the camera to where the endoscope would be
         # self.disableMouse()
-        #
-        # # Set camera pose - not that we need to add 90 to pitch for the camera to be aligned correctly.
-        # self.camera.setHpr(fixed_euler_degrees[0], fixed_euler_degrees[1], fixed_euler_degrees[2])
-        # self.camera.setPos(t[0], t[1], t[2])
-        #
-        # # Find camera object and set aspect ratio and focal length
-        # for obj in self.camera.getChildren():
-        #     self.realCamera = obj.node()
-        # lens = self.realCamera.getLens()
-        # lens.setAspectRatio(aspect_ratio)
-        # lens.setFocalLength(focal_length)
+        # self.camera.reparentTo(self.ecm)
+        # self.camera.setPos(0, 0, 0)
+        # self.camera.setHpr(440, 0, 0)
 
     def load_frame(self, frame):
         self.apply_transform(self.ecm, self.pose_ecm[frame])
         for i in range(3):
             transform_array = self.pose_psm[frame, i * 12:(i + 1) * 12]
             self.apply_transform(self.psms[i], transform_array)
-        pass
+
+        # self.angle += 1
+        # self.camera.setHpr(self.angle, 0, 0)
 
     def apply_transform(self, node, transform_array):
         assert len(transform_array) == 12
@@ -83,6 +115,11 @@ class EcmRenderApp(ShowBase):
             start = 3 + i * 3
             end = start + 3
             R[i, :] = transform_array[start:end]
+
+        print('')
+        print(transform_array[3:])
+        print(R)
+        print(R.T @ R)
 
         # euler_degrees = np.rad2deg(tf.rot_matrix_to_euler(R))
 
