@@ -1,6 +1,30 @@
 import numpy as np
 
 
+def parse_dv_pose(dv_pose):
+    """
+    Breaks down a vector representing manipulator tip pose (as received from dvLogger data) into a rotation matrix
+    and a translation vector.
+
+    The order of elements is as follows (as seen in dvLogger data):
+    [R11 R12 R13 tx R21 R22 R23 ty R31 R32 R33 tz]
+
+    :param dv_pose: An array with 9 elements representing the manipulator pose.
+    :return: A rotation matrix and a translation vector
+    """
+    dv_pose = dv_pose.flatten()
+    assert len(dv_pose) == 12
+
+    R = np.zeros((3, 3), dtype=np.float32)
+    t = np.zeros((3,), dtype=np.float32)
+
+    for i in range(3):
+        R[i, :] = dv_pose[i * 4:i * 4 + 3]
+        t[i] = dv_pose[i * 4 + 3]
+
+    return R, t
+
+
 def to_transform(rot_matrix=None, trans_vec=None):
     if rot_matrix is not None:
         assert rot_matrix.shape == (3, 3)
@@ -47,7 +71,7 @@ def is_rot_matrix(rot_matrix):
     identity_approx = rot_matrix.T @ rot_matrix
     identity = np.identity(3, dtype=rot_matrix.dtype)
     n = np.linalg.norm(identity - identity_approx)
-    return n < 1e-6
+    return n < 1e-4
 
 
 def rot_matrix_to_euler(rot_matrix):

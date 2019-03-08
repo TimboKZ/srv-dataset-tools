@@ -2,19 +2,10 @@ from _thread import start_new_thread
 from os import path
 import numpy as np
 import cv2 as cv
-import sys
-
-# Necessary to import files from sibling directories
-script_dir = path.dirname(path.realpath(__file__))
-# src_dir = path.join(script_dir, '..', 'src')
-# sys.path.append(src_dir)
 
 # Our local modules
-from da_vinci_kinematics.src.kinematics_visualiser import KinematicsRenderApp, LoadFrameEventName, ShutdownEventName
-
-data_dir = path.join(script_dir, '..', 'data')
-WindowName = 'Kinematics Viz'
-TrackbarName = 'Frame'
+from ds_tools.kinematics.kinematics_render_app import KinematicsRenderApp, LoadFrameEventName, ShutdownEventName
+from ds_tools.shared import util
 
 
 def load_numpy_csv(csv_path):
@@ -22,6 +13,9 @@ def load_numpy_csv(csv_path):
 
 
 def init_video_viewer(video_path, ecm_renderer):
+    WindowName = 'Kinematics Viz'
+    TrackbarName = 'Frame'
+
     def video_viewer_routine():
         cap = cv.VideoCapture(video_path)
         frame_count = int(cap.get(cv.CAP_PROP_FRAME_COUNT))
@@ -39,7 +33,7 @@ def init_video_viewer(video_path, ecm_renderer):
         cv.moveWindow(WindowName, 100, 100)
         cv.createTrackbar(TrackbarName, WindowName, 0, frame_count - 1, on_trackbar_change)
 
-        on_trackbar_change(0)
+        on_trackbar_change(1)
 
         paused = True
 
@@ -77,8 +71,8 @@ def init_video_viewer(video_path, ecm_renderer):
 
 
 def main():
+    data_dir = util.get_data_dir()
     video_path = path.join(data_dir, 'EndoscopeImageMemory_0_small.avi')
-    joint_angles_ecm = load_numpy_csv(path.join(data_dir, 'joint_angles_ecm.csv'))
     pose_ecm = load_numpy_csv(path.join(data_dir, 'pose_ecm.csv'))
     pose_psm = load_numpy_csv(path.join(data_dir, 'pose_psm.csv'))
 

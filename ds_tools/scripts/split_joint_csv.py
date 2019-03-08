@@ -38,7 +38,8 @@ def extract_individual_hands(input_kinematics_csv, output_dir):
 
 def main():
     input_kinematics_csv = path.join(data_dir, 'DaVinciSiMemory.csv')
-    extract_individual_hands(input_kinematics_csv, data_dir)
+    outpit_dir = data_dir
+    extract_individual_hands(input_kinematics_csv, outpit_dir)
 
 
 if __name__ == '__main__':
