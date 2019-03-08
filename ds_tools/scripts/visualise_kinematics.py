@@ -71,6 +71,7 @@ def init_video_viewer(video_path, ecm_renderer):
 
 
 def main():
+    # Tweak these paths to match your data
     data_dir = util.get_data_dir()
     video_path = path.join(data_dir, 'EndoscopeImageMemory_0_small.avi')
     pose_ecm = load_numpy_csv(path.join(data_dir, 'pose_ecm.csv'))
