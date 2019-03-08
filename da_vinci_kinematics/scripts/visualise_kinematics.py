@@ -6,11 +6,11 @@ import sys
 
 # Necessary to import files from sibling directories
 script_dir = path.dirname(path.realpath(__file__))
-src_dir = path.join(script_dir, '..', 'src')
-sys.path.append(src_dir)
+# src_dir = path.join(script_dir, '..', 'src')
+# sys.path.append(src_dir)
 
 # Our local modules
-from ecm_visualiser import EcmRenderApp, LoadFrameEventName, ShutdownEventName
+from da_vinci_kinematics.src.kinematics_visualiser import KinematicsRenderApp, LoadFrameEventName, ShutdownEventName
 
 data_dir = path.join(script_dir, '..', 'data')
 WindowName = 'Kinematics Viz'
@@ -83,7 +83,7 @@ def main():
     pose_psm = load_numpy_csv(path.join(data_dir, 'pose_psm.csv'))
 
     # Setup the 3D renderer
-    ecm_renderer = EcmRenderApp(pose_ecm, pose_psm)
+    ecm_renderer = KinematicsRenderApp(pose_ecm, pose_psm)
     ecm_renderer.init_scene()
 
     # Start the video viewer loop in a separate thread

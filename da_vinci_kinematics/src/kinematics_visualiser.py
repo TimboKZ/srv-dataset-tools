@@ -1,8 +1,5 @@
 from direct.showbase.ShowBase import ShowBase
-from _thread import start_new_thread
 from panda3d.core import *
-import transform as tf
-from time import sleep
 from os import path
 import numpy as np
 
@@ -13,7 +10,7 @@ ShutdownEventName = 'shutdown-event'
 
 
 # Our local modules
-class EcmRenderApp(ShowBase):
+class KinematicsRenderApp(ShowBase):
 
     def __init__(self, pose_ecm, pose_psm):
         ShowBase.__init__(self)
