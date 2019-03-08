@@ -37,3 +37,20 @@ that the **output** some scripts generate might go into the `data/` folder by de
 
 
 # Using Jupyter notebooks
+
+The `notebooks/` folder and its sub-directories contain Jupyter notebooks that showcase various tools from this 
+repository. The Python import statements in these notebooks are relative to the `.ipynb` files, which means that the 
+notebooks should work regardless of where you run `jupyter notebook`. That said, it's recommended to start the 
+Jupyter server as follows:
+```bash
+cd notebooks/
+jupyter notebook
+```
+
+# Note on coordinate systems
+
+There are three coordinate systems involved:
+* **da Vinci kinematics.** da Vinci kinematics come from the output of the dvLogger. The coordinate system of the 
+kinematics data is (?).
+* **Panda3d.** Panda3d is the Python library we use for 3D visualisations. Its coordinate system is 
+z-up right-handed.

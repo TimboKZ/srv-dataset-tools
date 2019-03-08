@@ -25,6 +25,39 @@ def parse_dv_pose(dv_pose):
     return R, t
 
 
+def to_homog(cart):
+    """
+    :param cart: Cartesian coordinates as a `m x n` matrix, where `m` is the number
+                 of dimensions and `n` is the number of points
+    :return: Homogeneous coordinates as a `(m+1) x n` matrix
+    """
+    return np.vstack((cart, np.ones((1, cart.shape[1]))))
+
+
+def to_cart(homog):
+    """
+    The opposite of `to_homog` function
+    """
+    m = homog.shape[0]
+    return homog[0:m - 1, :] / np.tile([homog[m - 1, :]], (m - 1, 1))
+
+
+def apply_transform(cart_points, transform):
+    """
+    Rotates the points around their centroid
+    d - number of dimensions
+    n - number of points
+
+    :param cart_points: `d x n` array of cartesian points
+    :param transform:
+    :return:
+    """
+    assert transform.shape == (4, 4)
+
+    homog_points = transform @ to_homog(cart_points)
+    return to_cart(homog_points)
+
+
 def to_transform(rot_matrix=None, trans_vec=None):
     if rot_matrix is not None:
         assert rot_matrix.shape == (3, 3)
