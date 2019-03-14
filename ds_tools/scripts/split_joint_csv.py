@@ -2,8 +2,8 @@ import pandas as pd
 from os import path
 import numpy as np
 
-script_dir = path.dirname(path.realpath(__file__))
-data_dir = path.join(script_dir, '..', 'data')
+# Our local modules
+from ds_tools.shared import util
 
 
 def extract_string_array_column(column_array, output_csv, number_count):
@@ -28,18 +28,39 @@ def extract_individual_hands(input_kinematics_csv, output_dir):
     That is, the input should NOT be a `.issi` file but rather a `.csv` file generated from the `.issi`.
     """
     kinematics_df = pd.read_csv(input_kinematics_csv, header=0)
-    extract_string_array_column(kinematics_df.values[:, 6], path.join(output_dir, 'joint_angles_ecm.csv'), 8)
-    extract_string_array_column(kinematics_df.values[:, 7], path.join(output_dir, 'joint_angles_psm1.csv'), 8)
-    extract_string_array_column(kinematics_df.values[:, 8], path.join(output_dir, 'joint_angles_psm2.csv'), 8)
-    extract_string_array_column(kinematics_df.values[:, 9], path.join(output_dir, 'joint_angles_psm3.csv'), 8)
-    extract_string_array_column(kinematics_df.values[:, 11], path.join(output_dir, 'pose_ecm.csv'), 12)
-    extract_string_array_column(kinematics_df.values[:, 12], path.join(output_dir, 'pose_psm.csv'), 36)
+    values = kinematics_df.values
+
+    # Clean up the data by throwing away unwanted columns.
+    with open(input_kinematics_csv) as csv_file:
+        header_line = csv_file.readline()
+    headers = header_line.split(',')
+    data_column_indices = []
+    curr_index = -1
+    for header in headers:
+        curr_index += 1
+        if header.startswith('header.') or header.startswith('data.'):
+            data_column_indices.append(curr_index)
+    if len(data_column_indices) != 15:
+        raise ValueError('The provided doesn\'t have the right number of columns!')
+
+    # Extract individual columns into separate `.csv` files
+    extract_string_array_column(values[:, data_column_indices[5]], path.join(output_dir, 'joint_angles_ecm.csv'), 8)
+    extract_string_array_column(values[:, data_column_indices[6]], path.join(output_dir, 'joint_angles_psm1.csv'), 8)
+    extract_string_array_column(values[:, data_column_indices[7]], path.join(output_dir, 'joint_angles_psm2.csv'), 8)
+    extract_string_array_column(values[:, data_column_indices[8]], path.join(output_dir, 'joint_angles_psm3.csv'), 8)
+    extract_string_array_column(values[:, data_column_indices[10]], path.join(output_dir, 'pose_ecm.csv'), 12)
+    extract_string_array_column(values[:, data_column_indices[11]], path.join(output_dir, 'pose_psm.csv'), 36)
 
 
 def main():
-    input_kinematics_csv = path.join(data_dir, 'DaVinciSiMemory.csv')
-    outpit_dir = data_dir
-    extract_individual_hands(input_kinematics_csv, outpit_dir)
+    data_dir = util.get_data_dir()
+    capture_dir = path.join(data_dir, 'new_phantom_capture_p1')
+    # capture_dir = path.join(data_dir, 'prostate_surgery')
+
+    input_kinematics_csv = path.join(capture_dir, 'DaVinciSiMemory.csv')
+    output_dir = capture_dir
+
+    extract_individual_hands(input_kinematics_csv, output_dir)
 
 
 if __name__ == '__main__':

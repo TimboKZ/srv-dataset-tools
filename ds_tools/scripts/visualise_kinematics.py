@@ -5,7 +5,7 @@ import cv2 as cv
 
 # Our local modules
 from ds_tools.kinematics.kinematics_render_app import KinematicsRenderApp, LoadFrameEventName, ShutdownEventName
-from ds_tools.shared import util
+from ds_tools.shared import util, cv_util
 
 
 def load_numpy_csv(csv_path):
@@ -72,14 +72,14 @@ def init_video_viewer(video_capture, ecm_renderer):
 def main():
     # Tweak these paths to match your data
     data_dir = util.get_data_dir()
-    video_path = path.join(data_dir, 'EndoscopeImageMemory_0_small.avi')
-    pose_ecm = load_numpy_csv(path.join(data_dir, 'pose_ecm.csv'))
-    pose_psm = load_numpy_csv(path.join(data_dir, 'pose_psm.csv'))
+    capture_dir = path.join(data_dir, 'new_phantom_capture_p1')
+    video_path = path.join(capture_dir, 'EndoscopeImageMemory_0_small.mp4')
+    pose_ecm = load_numpy_csv(path.join(capture_dir, 'pose_ecm.csv'))
+    pose_psm = load_numpy_csv(path.join(capture_dir, 'pose_psm.csv'))
 
     # Prepare video capture
     cap = cv.VideoCapture(video_path)
-    width = int(cap.get(cv.CAP_PROP_FRAME_WIDTH))
-    height = int(cap.get(cv.CAP_PROP_FRAME_HEIGHT))
+    width, height = cv_util.get_capture_size(cap)
 
     # Setup the 3D renderer
     ecm_renderer = KinematicsRenderApp(width=width, height=height,

@@ -22,6 +22,7 @@ class KinematicsRenderApp(BaseRenderApp):
         self.ecm_cube = None
         self.psms = [None] * 3
 
+        self.skybox = None
         self.angle = np.array([0, 90, 0])
 
     def init_scene(self):
@@ -38,8 +39,17 @@ class KinematicsRenderApp(BaseRenderApp):
         self.ecm = NodePath("ecm")
         self.ecm.reparent_to(render)
 
-        self.main_camera_parent.reparentTo(self.ecm)
-        self.camera.setHpr(self.angle[0], self.angle[1], self.angle[2])
+        # Bind camera to the endoscope
+        # self.disableMouse()
+        # self.main_camera_parent.reparentTo(self.ecm)
+        # self.camera.setHpr(self.angle[0], self.angle[1], self.angle[2])
+
+        # Setup skybox
+        self.skybox = self.loader.loadModel('models/box')
+        self.skybox.setBin('background', 0)
+        self.skybox.setDepthWrite(False)
+        self.skybox.setCompass()
+        # self.skybox.reparentTo(self.main_camera_parent)
 
         for i in range(3):
             psm = self.loader.loadModel('models/box')
@@ -77,11 +87,6 @@ class KinematicsRenderApp(BaseRenderApp):
         self.accept(LoadFrameEventName, self.load_frame)
         self.accept(ShutdownEventName, self.shutdown_and_destroy)
 
-        # Move the camera to where the endoscope would be
-        self.disableMouse()
-        # self.camera.reparentTo(self.ecm)
-        # self.camera.setPos(0, 0, 0)
-
     def load_frame(self, frame):
         if self.pose_ecm is not None:
             self.apply_pose(self.ecm, self.pose_ecm[frame])
@@ -91,10 +96,13 @@ class KinematicsRenderApp(BaseRenderApp):
                 transform_array = self.pose_psm[frame, i * 12:(i + 1) * 12]
                 self.apply_pose(self.psms[i], transform_array)
 
-
     @staticmethod
     def apply_pose(node, pose_array):
         assert len(pose_array) == 12
+
+        # Check if kinematics data is available, do nothing if it's not.
+        if np.sum(pose_array) == 0:
+            return
 
         R, t = tf.parse_dv_pose(pose_array)
         euler_degrees = np.rad2deg(tf.rot_matrix_to_euler(R))
@@ -125,7 +133,7 @@ def main():
     #
     #     sleep(5)
     #
-    #     # TODO: Add some frame testing code ghy
+    #     # TODO: Add some frame testing code
     #
     # start_new_thread(multithreading_events, ())
     #

@@ -36,6 +36,7 @@ class BaseRenderApp(ShowBase):
             self.main_camera = obj.node()
         self.main_lens = self.main_camera.getLens()
 
+        # Set default aspect ratio for the camera
         if self.width and self.height:
             aspect_ratio = self.width / self.height
             self.main_lens.setAspectRatio(aspect_ratio)

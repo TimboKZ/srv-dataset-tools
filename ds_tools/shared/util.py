@@ -2,6 +2,7 @@ from os import path
 import numpy as np
 import tempfile
 import json
+import os
 
 script_dir = path.dirname(path.realpath(__file__))
 data_dir = path.normpath(path.join(script_dir, '..', '..', 'data'))
@@ -30,6 +31,11 @@ def get_temp_filename(name='srv-temp-file', extension=None):
 
     full_path = path.join(tempfile.gettempdir(), filename)
     return full_path
+
+
+def ensure_dir(dir_path):
+    if not path.exists(dir_path):
+        os.makedirs(dir_path)
 
 
 def save_dict(file_path, data):
