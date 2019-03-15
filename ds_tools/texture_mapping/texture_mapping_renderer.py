@@ -27,7 +27,7 @@ class TextureMappingRenderApp(BaseRenderApp):
 
     def init_scene(self, model_path, texture_path, camera_image_path, camera_pos, camera_hpr):
         render = self.render
-        self.setBackgroundColor(0, 0.1, 0, 0)
+        self.setBackgroundColor(1, 1, 1, 1)
 
         # Set camera near clip and focal length
         self.main_lens.setNear(0.01)
@@ -69,7 +69,6 @@ class TextureMappingRenderApp(BaseRenderApp):
         # Set the lens parameters
         projection_camera = projection_camera_np.node()
         projection_lens = projection_camera.getLens()
-        projection_lens.showFrustrum()
         projection_lens.setNear(0.01)
         projection_lens.setFocalLength(1)
 
@@ -80,9 +79,16 @@ class TextureMappingRenderApp(BaseRenderApp):
         self.model.setShader(self.uvShader)
 
         self.taskMgr.add(self.update_shader_state, 'UpdateShaderStateTask')
+        self.accept('space', self.toggle_shader_mode)
 
         # Enable render shaders
         # render.setShaderAuto()
+
+    def toggle_shader_mode(self):
+        if self.shaderMode == self.ShaderMode_3D:
+            self.shaderMode = self.ShaderMode_Texture
+        else:
+            self.shaderMode = self.ShaderMode_3D
 
     def update_shader_state(self, task=None):
         self.model.setShaderInput('ShaderMode', self.shaderMode)

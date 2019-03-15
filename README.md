@@ -52,5 +52,7 @@ jupyter notebook
 There are three coordinate systems involved:
 * **da Vinci kinematics.** da Vinci kinematics come from the output of the dvLogger. The coordinate system of the 
 kinematics data is (?).
+* **Blender.** Blender is used for some texture mapping operations, namely unwrapping UV maps of models. Its coordinate
+system is z-up right-handed.
 * **Panda3d.** Panda3d is the Python library we use for 3D visualisations. Its coordinate system is 
 z-up right-handed.
