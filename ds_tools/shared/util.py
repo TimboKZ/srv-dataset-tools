@@ -6,6 +6,7 @@ import os
 
 script_dir = path.dirname(path.realpath(__file__))
 data_dir = path.normpath(path.join(script_dir, '..', '..', 'data'))
+resource_dir = path.normpath(path.join(script_dir, '..', '..', 'resources'))
 
 
 def get_data_dir():
@@ -13,6 +14,13 @@ def get_data_dir():
     Returns the path to the top-level data directory
     """
     return data_dir
+
+
+def get_resource_dir():
+    """
+    Returns the path to the top level resource directory
+    """
+    return resource_dir
 
 
 def get_temp_filename(name='srv-temp-file', extension=None):

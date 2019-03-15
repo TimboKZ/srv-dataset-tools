@@ -1,5 +1,7 @@
 from direct.showbase.ShowBase import ShowBase
 from panda3d.core import *
+from time import sleep
+from os import path
 import cv2 as cv
 import os
 
@@ -33,7 +35,8 @@ class BaseRenderApp(ShowBase):
         # Setup references to cameras and lenses
         self.main_camera_parent = self.camera
         for obj in self.camera.getChildren():
-            self.main_camera = obj.node()
+            self.main_camera_nodepath = obj
+        self.main_camera = self.main_camera_nodepath.node()
         self.main_lens = self.main_camera.getLens()
 
         # Set default aspect ratio for the camera
@@ -48,10 +51,19 @@ class BaseRenderApp(ShowBase):
 
         # Save file into a temp directory
         temp_screenshot_file = util.get_temp_filename(name='src-temp-capture', extension='png')
-        source = None
-        if self.headless:
-            source = self.headless_buffer
-        self.screenshot(temp_screenshot_file, source=source, defaultFilename=False)
+
+        def attempt_screenshot():
+            if self.headless:
+                source = self.headless_buffer
+                self.screenshot(temp_screenshot_file, source=source, defaultFilename=False)
+            else:
+                self.screenshot(temp_screenshot_file, defaultFilename=False)
+
+        # Try to take a screenshot
+        if not self.headless:
+            print('Be warned - screenshots only work consistently in headless mode. In other modes you might '
+                  'experience the issue where the screenshot file is never generated.')
+        attempt_screenshot()
 
         # Load the temp file using OpenCV and delete the original file
         screenshot = cv.imread(temp_screenshot_file)
