@@ -1,4 +1,10 @@
+import numpy as np
 import cv2 as cv
+
+
+def expand_2d_to_3d(mat_2d, last_dim_size):
+    assert len(mat_2d.shape) == 2
+    return np.repeat(mat_2d[:, :, np.newaxis], last_dim_size, axis=2)
 
 
 def get_capture_size(cap):

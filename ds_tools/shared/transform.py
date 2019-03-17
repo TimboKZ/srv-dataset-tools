@@ -1,3 +1,4 @@
+import numpy.linalg as la
 import numpy as np
 
 
@@ -23,6 +24,28 @@ def parse_dv_pose(dv_pose):
         t[i] = dv_pose[i * 4 + 3]
 
     return R, t
+
+
+def angle_between(vec_1, vec_2, return_rad=False, normalize=True):
+    """
+    Returns the angle between two vectors. Returns angle in degrees by default.
+
+    :param vec_1:
+    :param vec_2:
+    :param return_rad:
+    :param normalize:
+    :return:
+    """
+    if normalize:
+        vec_1 /= la.norm(vec_1)
+        vec_2 /= la.norm(vec_2)
+
+    rad_angle = np.arccos(vec_1.dot(vec_2))
+
+    if return_rad:
+        return rad_angle
+    else:
+        return np.rad2deg(rad_angle)
 
 
 def to_homog(cart):
