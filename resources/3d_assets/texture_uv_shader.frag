@@ -25,11 +25,27 @@ in vec2 projection_texcoord;
 // Output into the renderer
 out vec4 frag_color;
 
+bool valid_texcoord(vec2 texcoord) {
+    if (texcoord[0] < 0.0 || texcoord[0] > 1.0) {
+        return false;
+    }
+    if (texcoord[1] < 0.0 || texcoord[1] > 1.0) {
+        return false;
+    }
+
+    return true;
+}
+
 void main() {
     vec4 model_color = texture2D(ModelTexture, model_texcoord);
 
     //    vec2 projection_texcoord = vec2(vertex_pos);
-    vec4 projection_color = texture2D(ProjectionTexture, projection_texcoord);
+    vec4 projection_color;
+    if (valid_texcoord(projection_texcoord)) {
+        projection_color = texture2D(ProjectionTexture, projection_texcoord);
+    } else {
+        projection_color = vec4(0, 0, 0, 1);
+    }
 
     if (ShaderTextureMode == ShaderTextureMode_Projection) {
         frag_color = projection_color.rgba;

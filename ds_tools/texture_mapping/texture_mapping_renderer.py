@@ -40,10 +40,11 @@ class TextureMappingRenderApp(BaseRenderApp):
         self.texture_width = None
         self.texture_height = None
 
-        # self.default_bg = [0.0, 0.0, 0.0, 1.0]
         self.default_bg = [1.0, 1.0, 1.0, 1.0]
 
-    def init_scene(self, model_path, texture_path):
+        self.last_projection_camera_normal = None
+
+    def init_scene(self, model_path, texture_path, normal_map_path=None):
         render = self.render
         self.setBackgroundColor(*self.default_bg)
 
@@ -55,11 +56,52 @@ class TextureMappingRenderApp(BaseRenderApp):
         self.model = self.loader.loadModel(model_path, noCache=True)
         self.model.reparentTo(render)
 
+        # Find the actual geom object of the model
+        model_geom = self.model
+        while len(model_geom.children) != 0:
+            if len(model_geom.children) > 1:
+                print('[WARN] Model has more than one child!')
+            model_geom = model_geom.children[0]
+            model_geom.setPos(0, 0, 0)
+            model_geom.setHpr(0, 0, 0)
+
+        # Remove all textures from the model
+        # model_geom.clearTexture()
+        # model_geom.clearMaterial()
+
+        # Prepare a material for the model
+        # model_mat = Material()
+        # model_mat.setAmbient((0.5, 0.5, 0.5, 1.0))
+        # model_mat.setSpecular((1.0, 1.0, 1.0, 1.0))
+        # model_mat.setBaseColor((0.5, 0.5, 0.5, 1))
+        # model_mat.setShininess(250.0)
+        # model_mat.setRoughness(0.0)
+        # model_geom.setMaterial(model_mat)
+
+        # Add normal map to the texture if one was provided
+        if normal_map_path is not None:
+            normal_tex = self.loader.loadTexture(normal_map_path)
+            normal_ts = TextureStage('model_normal_ts')
+            normal_ts.setMode(TextureStage.MNormal)
+            # model_geom.setTexture(normal_ts, normal_tex)
+
         # Explicitly apply the model texture to the model
         texture_cv = cv.imread(texture_path)
         self.texture_height, self.texture_width = texture_cv.shape[:2]
         model_tex = self.loader.loadTexture(texture_path)
-        self.model.setTexture(model_tex)
+        model_ts = TextureStage('model_ts')
+        model_ts.setMode(TextureStage.MDecal)
+        # model_geom.setTexture(model_ts, model_tex)
+
+        # Enable shaders on model geometry
+        # model_geom.setShaderAuto()
+
+        # Attach a point light to the camera
+        point_light = PointLight('point_light')
+        point_light.setColor(VBase4(1, 1, 1, 1))
+        point_light_np = self.main_camera_parent.attachNewNode(point_light)
+        point_light_np.setPos(0, 0, 0)
+        render.setLight(point_light_np)
 
         # Setup the shader with basic parameters
         self.update_shader_state()
@@ -97,24 +139,24 @@ class TextureMappingRenderApp(BaseRenderApp):
         projection_camera_np.setPos(*camera_pos)
         projection_camera_np.setHpr(*camera_hpr)
 
-        box = self.loader.loadModel('models/box')
-        box.reparentTo(self.main_camera_np)
-        box.setScale(0.01)
-        box.setPos(0, 2, 0)
+        normal_box = self.loader.loadModel('models/box')
+        normal_box.reparentTo(self.main_camera_np)
+        normal_box.setScale(0.0001)
+        normal_box.setPos(0, 2, 0)
 
-        box_pos = box.getNetTransform().getPos()
+        normal_box_pos = normal_box.getNetTransform().getPos()
         cam_pos = self.main_camera_parent.getPos()
-        normal = (box_pos - cam_pos).normalized()
-        print('\nPanda3d normal:', normal)
+        normal = (normal_box_pos - cam_pos).normalized()
+        self.last_projection_camera_normal = normal
 
         # Move actual render camera to the same position
-        self.disableMouse()
-        self.main_camera_parent.setPos(*camera_pos)
-        self.main_camera_parent.setHpr(*camera_hpr)
+        # self.disableMouse()
+        self.main_camera_np.setPos(*camera_pos)
+        self.main_camera_np.setHpr(*camera_hpr)
 
-        box_pos = box.getNetTransform().getPos()
+        normal_box_pos = normal_box.getNetTransform().getPos()
         cam_pos = self.main_camera_parent.getPos()
-        normal = (box_pos - cam_pos).normalized()
+        normal = (normal_box_pos - cam_pos).normalized()
         print('\nPanda3d normal:', normal)
 
         # Set the lens parameters
@@ -123,23 +165,24 @@ class TextureMappingRenderApp(BaseRenderApp):
         projection_lens.setNear(0.01)
         projection_lens.setFocalLength(1)
 
+        # # Uncomment to visualise the camera
+        # proj = render.attachNewNode(LensNode('proj'))
+        # proj.node().setLens(projection_lens)
+        # proj.node().showFrustum()
+        # proj.find('frustum').setColor(1, 0, 0, 1)
+        # camModel = self.loader.loadModel('camera.egg')
+        # camModel.reparentTo(proj)
+        # proj.reparentTo(render)
+        # proj.setPos(*projection_camera_np.getNetTransform().getPos())
+        # proj.setHpr(*projection_camera_np.getNetTransform().getHpr())
+
         # Set shader parameters
         self.model.setShaderInput('ProjectionTexture', camera_image_texture)
-        self.model.setShaderInput('proj_ModelViewMatrix', render.getMat(projection_camera_np))
+        self.model.setShaderInput('proj_ModelViewMatrix', self.model.getMat(projection_camera_np))
         self.model.setShaderInput('proj_ProjectionMatrix', projection_lens.getProjectionMat())
 
-        # Delete all unnecessary
+        # Delete all unnecessary nodes and objects
         projection_camera_np.removeNode()
-
-        # Visualise the normal
-        R = tf.euler_to_rot_matrix(np.deg2rad(camera_hpr))
-        front = np.array(LVector3f.forward())
-        camera_normal = (R @ front).flatten()
-        print('Calculated normal:', camera_normal)
-
-        # Rotate the normal
-        np_normal = np.array(normal)
-        print('Rot:', np.linalg.inv(R) @ np_normal)
 
     def toggle_shader(self):
         self.shader_texture_mode = (self.shader_texture_mode + 1) % self.ShaderTextureMode_END
@@ -168,6 +211,10 @@ class TextureMappingRenderApp(BaseRenderApp):
     def update_shader_state(self, task=None):
         self.model.setShaderInput('ShaderViewMode', self.shader_view_mode)
         self.model.setShaderInput('ShaderTextureMode', self.shader_texture_mode)
+
+        # print('')
+        # print(self.camera.getPos())
+        # print(self.camera.getHpr())
 
         if task is not None:
             return task.cont
@@ -205,10 +252,11 @@ class TextureMappingRenderApp(BaseRenderApp):
 
 def main():
     resource_dir = util.get_resource_dir()
-    model_path = path.join(resource_dir, '3d_assets', 'woodbox.obj')
-    texture_path = path.join(resource_dir, '3d_assets', 'woodbox.png')
-    camera_image_path = path.join(resource_dir, 'box_screenshots', '{}_screenshot.png')
-    capture_data_json_path = path.join(resource_dir, 'capture_data.json')
+    model_path = path.join(resource_dir, '3d_assets', 'heart.obj')
+    texture_path = path.join(resource_dir, '3d_assets', 'T_heart_base3.png')
+    normal_map_path = path.join(resource_dir, '3d_assets', 'T_heart_n.png')
+    camera_image_path = path.join(resource_dir, 'heart_screenshots', '{}_screenshot.png')
+    capture_data_json_path = path.join(resource_dir, 'heart_screenshots', 'capture_data.json')
 
     # Load capture data JSON
     capture_json = util.load_dict(capture_data_json_path)
@@ -228,20 +276,22 @@ def main():
     # util.save_dict(path.join(resource_dir, 'capture_data.json'), my_dict)
     # return
 
-    tex_mode = False
+    tex_mode = True
     renderer = None
     if tex_mode:
         texture_cv = cv.imread(texture_path)
         texture_height, texture_width = texture_cv.shape[:2]
         renderer = TextureMappingRenderApp(width=texture_width, height=texture_height, headless=True)
     else:
-        renderer = TextureMappingRenderApp(width=720, height=576, headless=False)
+        renderer = TextureMappingRenderApp(width=1280, height=720, headless=False)
 
     renderer.init_scene(model_path=model_path,
-                        texture_path=texture_path)
+                        texture_path=texture_path,
+                        normal_map_path=normal_map_path)
 
-    base_capture_path = path.join(resource_dir, 'texture_capture', 'base_{}.png')
-    texture_capture_path = path.join(resource_dir, 'texture_capture', '{}_{}.png')
+    capture_folder_name = 'heart_texture_capture'
+    base_capture_path = path.join(resource_dir, capture_folder_name, 'base_{}.png')
+    texture_capture_path = path.join(resource_dir, capture_folder_name, '{}_{}.png')
 
     def capture_texture(texture_type, name, index=None):
         texture_capture = renderer.capture_shader_texture(texture_type)
@@ -251,7 +301,7 @@ def main():
             save_path = base_capture_path.format(name)
         cv.imwrite(save_path, texture_capture)
 
-    for i in range(3, 4):
+    for i in range(len(camera_pos)):
         renderer.update_projection(camera_image_path=camera_image_path.format(i),
                                    camera_pos=camera_pos[i],
                                    camera_hpr=camera_hpr[i])

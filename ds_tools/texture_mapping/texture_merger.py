@@ -40,7 +40,7 @@ def merge_textures(capture_data_json_path, texture_dir, texture_count):
     base_normal /= base_normal_sizes
 
     # Compute confidence scores for all pixels
-    confidences = np.zeros((height, width, texture_count))
+    confidences = np.zeros((texture_count, height, width))
     for i in range(texture_count):
         camera_normal = np.array(all_camera_normal[i])
 
@@ -64,17 +64,17 @@ def merge_textures(capture_data_json_path, texture_dir, texture_count):
                 angle = incidence_angles[y, x]
                 confidence[y, x] = 1.0 - angle / 90 if angle < 90 else 0
 
-        confidences[:, :, i] = confidence
+        confidences[i] = confidence
         confidence_img = cv.cvtColor(confidence * 255.0, cv.COLOR_GRAY2BGR)
         cv.imwrite(texture_capture_path.format(i, 'confidence'), confidence_img)
 
     # Normalize confidences
-    confidences /= cv_util.expand_2d_to_3d(la.norm(confidences, axis=2), texture_count) + np.finfo(np.float32).eps
+    confidences /= np.sum(confidences, axis=0) + np.finfo(np.float32).eps
 
     # Combine all textures using confidence scores image
     combined_image = np.zeros((height, width, 3))
     for i in range(texture_count):
-        combined_image += projections[i] * cv_util.expand_2d_to_3d(confidences[:, :, i], 3)
+        combined_image += projections[i] * cv_util.expand_2d_to_3d(confidences[i], 3)
 
     # Write final image
     final_image = combined_image + cv_util.expand_2d_to_3d(base_mask_inv_img, 3)
@@ -83,8 +83,8 @@ def merge_textures(capture_data_json_path, texture_dir, texture_count):
 
 def main():
     resource_dir = util.get_resource_dir()
-    json_path = path.join(resource_dir, 'capture_data.json')
-    capture_path = path.join(resource_dir, 'texture_capture')
+    json_path = path.join(resource_dir, 'heart_screenshots', 'capture_data.json')
+    capture_path = path.join(resource_dir, 'heart_texture_capture')
 
     merge_textures(json_path, capture_path, 4)
 
