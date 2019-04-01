@@ -6,6 +6,7 @@
 #define ShaderTextureMode_Projection 1
 #define ShaderTextureMode_Normal 2
 #define ShaderTextureMode_Mask 3
+#define ShaderTextureMode_Visibility 4
 
 // Shader parameters
 uniform int ShaderViewMode;
@@ -41,10 +42,13 @@ void main() {
 
     //    vec2 projection_texcoord = vec2(vertex_pos);
     vec4 projection_color;
+    vec4 projection_mask;
     if (valid_texcoord(projection_texcoord)) {
         projection_color = texture2D(ProjectionTexture, projection_texcoord);
+        projection_mask = vec4(1, 1, 1, 1);
     } else {
         projection_color = vec4(0, 0, 0, 1);
+        projection_mask = vec4(0, 0, 0, 1);
     }
 
     if (ShaderTextureMode == ShaderTextureMode_Projection) {
@@ -54,6 +58,8 @@ void main() {
         frag_color = vec4(normal_0_to_1, 1.0);
     } else if (ShaderTextureMode == ShaderTextureMode_Mask) {
         frag_color = vec4(1.0, 1.0, 1.0, 1.0);
+    } else if (ShaderTextureMode == ShaderTextureMode_Visibility) {
+        frag_color = projection_mask;
     } else {
         // ShaderTextureMode == ShaderTextureMode_Default
         frag_color = model_color.rgba;

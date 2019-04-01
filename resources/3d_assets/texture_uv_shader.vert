@@ -6,6 +6,7 @@
 #define ShaderTextureMode_Projection 1
 #define ShaderTextureMode_Normal 2
 #define ShaderTextureMode_Mask 3
+#define ShaderTextureMode_Visibility 4
 
 // Shader parameters
 uniform int ShaderViewMode;
