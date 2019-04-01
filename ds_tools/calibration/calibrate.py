@@ -13,9 +13,19 @@ def simple_preprocess(in_frame):
     return gray
 
 
-def get_detected_chessboard_points(video_cap, cb_size, frames_with_pattern=30, term_criteria=simple_term_criteria,
-                                   preprocess_func=simple_preprocess):
-    video_cap.set(cv.CAP_PROP_POS_FRAMES, 0)
+def get_detected_chessboard_points(video_cap_or_frames, cb_size, frames_with_pattern=30,
+                                   term_criteria=simple_term_criteria,
+                                   preprocess_func=simple_preprocess, flags=None):
+    got_video_cap = video_cap_or_frames is cv.VideoCapture
+    if got_video_cap:
+        print('Got video capture as input, will extract frames from it to detect chessboard pattern.')
+        video_cap = video_cap_or_frames
+    else:
+        print('Got an array of frames as input, will use them to detect chessboard pattern.')
+        frames = video_cap_or_frames
+
+    if got_video_cap:
+        video_cap.set(cv.CAP_PROP_POS_FRAMES, 0)
 
     # Generate the plane with the chessboard (inner) corner points
     world_plane = np.zeros((cb_size[0] * cb_size[1], 3), np.float32)
@@ -24,32 +34,54 @@ def get_detected_chessboard_points(video_cap, cb_size, frames_with_pattern=30, t
     world_points = []  # 3d point in real world space
     img_points = []  # 2d points in image plane.
 
-    frame_count = int(video_cap.get(cv.CAP_PROP_FRAME_COUNT))
+    frame_count = int(video_cap.get(cv.CAP_PROP_FRAME_COUNT)) if got_video_cap else len(frames)
     point_count = 0
     curr_frame = 0
-    while video_cap.isOpened():
-        ret, frame = video_cap.read()
-        if not ret:
-            break
 
-        curr_frame += 1
-        pp_frame = preprocess_func(frame)
-        ret, img_corners = cv.findChessboardCorners(pp_frame, cb_size, None)
+    if got_video_cap:
+        while video_cap.isOpened():
+            ret, frame = video_cap.read()
+            if not ret:
+                break
 
-        # If found, add object points, image points (after refining them)
-        if ret:
-            img_cb_corners = cv.cornerSubPix(pp_frame, img_corners, (11, 11), (-1, -1), term_criteria)
-            world_points.append(world_plane)
-            img_points.append(img_cb_corners)
-            point_count += 1
+            curr_frame += 1
+            pp_frame = preprocess_func(frame)
+            ret, img_corners = cv.findChessboardCorners(pp_frame, cb_size, flags)
 
-        print('\rProcessed frame {} out of {}   (found pattern on {} frames, need {} more)'
-              .format(curr_frame, frame_count, point_count, frames_with_pattern - point_count), end='')
+            # If found, add object points, image points (after refining them)
+            if ret:
+                img_cb_corners = cv.cornerSubPix(pp_frame, img_corners, (11, 11), (-1, -1), term_criteria)
+                world_points.append(world_plane)
+                img_points.append(img_cb_corners)
+                point_count += 1
 
-        if point_count >= frames_with_pattern:
-            print('')
-            print('Found {} points, terminating the loop.'.format(frames_with_pattern))
-            break
+            print('\rProcessed frame {} out of {}   (found pattern on {} frames, need {} more)'
+                  .format(curr_frame, frame_count, point_count, frames_with_pattern - point_count), end='')
+
+            if point_count >= frames_with_pattern:
+                print('')
+                print('Found {} points, terminating the loop.'.format(frames_with_pattern))
+                break
+    else:
+        for frame in frames:
+            curr_frame += 1
+            pp_frame = preprocess_func(frame)
+            ret, img_corners = cv.findChessboardCorners(pp_frame, cb_size, flags)
+
+            # If found, add object points, image points (after refining them)
+            if ret:
+                img_cb_corners = cv.cornerSubPix(pp_frame, img_corners, (11, 11), (-1, -1), term_criteria)
+                world_points.append(world_plane)
+                img_points.append(img_cb_corners)
+                point_count += 1
+
+            print('\rProcessed frame {} out of {}   (found pattern on {} frames, need {} more)'
+                  .format(curr_frame, frame_count, point_count, frames_with_pattern - point_count), end='')
+
+            if point_count >= frames_with_pattern:
+                print('')
+                print('Found {} points, terminating the loop.'.format(frames_with_pattern))
+                break
 
     return world_points, img_points
 

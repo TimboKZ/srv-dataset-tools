@@ -147,3 +147,18 @@ def rot_matrix_to_euler(rot_matrix):
         z = 0
 
     return np.array([x, y, z])
+
+
+def find_plane_normal(points):
+    """
+    d - number of dimensions
+    n - number of points
+
+    :param points: `d x n` array of points
+    :return: normal vector of the best-fit plane through the points
+    """
+    mean = np.mean(points, axis=1)
+    zero_centre = (points.T - mean.T).T
+    U, s, VT = np.linalg.svd(zero_centre)
+    normal = U[:, -1]
+    return normal

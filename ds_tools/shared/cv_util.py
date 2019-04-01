@@ -69,3 +69,15 @@ def load_all_images(folder_path, convert_to_rgb=False):
         images.append(image)
 
     return images
+
+def undistort_line(line, cam_matrix, dist_coeffs, new_cam_matrix):
+    cv_points = np.expand_dims(line.T, axis=0).astype(np.float32)
+    new_line = cv.undistortPoints(cv_points,
+                                  cam_matrix,
+                                  dist_coeffs,
+                                  P=new_cam_matrix
+                                  )[0].T
+
+    # new_line[0, :] = new_line[0, :]
+    # new_line[1, :] = new_line[1, :]
+    return new_line

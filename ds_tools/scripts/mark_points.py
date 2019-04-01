@@ -22,7 +22,7 @@ def main():
     data_dir = util.get_data_dir()
 
     if load_image:
-        image_path = path.join(data_dir, 'placenta_phantom_calib', 'calib_image.png')
+        image_path = path.join(data_dir, 'placenta_phantom_calib', 'scan_3.png')
         img = cv.imread(image_path)
     else:
         video_name = 'handheld-endoscope-calibration-full.avi'

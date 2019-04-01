@@ -9,9 +9,9 @@ from ds_tools.shared import util, cv_util
 
 def main():
     data_dir = util.get_data_dir()
-    capture_dir = path.join(data_dir, 'new_phantom_capture_p1')
-    video_0_path = path.join(capture_dir, 'EndoscopeImageMemory_0_small.mp4')
-    video_1_path = path.join(capture_dir, 'EndoscopeImageMemory_1_small.mp4')
+    capture_dir = path.join(data_dir, 'placenta_phantom_capture')
+    video_0_path = path.join(capture_dir, 'EndoscopeImageMemory_0.avi')
+    video_1_path = path.join(capture_dir, 'EndoscopeImageMemory_1.avi')
     video_csv_0_path = path.join(capture_dir, 'EndoscopeImageMemory_0.csv')
     video_csv_1_path = path.join(capture_dir, 'EndoscopeImageMemory_1.csv')
     kinematics_csv_path = path.join(capture_dir, 'DaVinciSiMemory.csv')
