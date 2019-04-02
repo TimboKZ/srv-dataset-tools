@@ -37,7 +37,12 @@ class KinematicsRenderApp(BaseRenderApp):
 
         # Create ECM and PSM objects
         self.ecm = NodePath("ecm")
-        self.ecm.reparent_to(render)
+        self.ecm.reparentTo(render)
+
+        # Visualise endoscope manipulator
+        ecm_box = self.loader.loadModel('models/box')
+        ecm_box.setScale(0.01)
+        ecm_box.reparentTo(self.ecm)
 
         # Bind camera to the endoscope
         # self.disableMouse()
@@ -51,15 +56,16 @@ class KinematicsRenderApp(BaseRenderApp):
         self.skybox.setCompass()
         # self.skybox.reparentTo(self.main_camera_parent)
 
+        # Visualise tool manipulators
         for i in range(3):
             psm = self.loader.loadModel('models/box')
             psm.setScale(0.01)
-            psm.reparent_to(self.ecm)
+            psm.reparentTo(self.ecm)
             self.psms[i] = psm
 
         # Set materials for visible objects
         self.toggleTexture()
-        self.ecm.setColor(1, 0, 0, 1)
+        ecm_box.setColor(1, 0, 0, 1)
         self.psms[0].setColor(0, 1, 0, 1)
         self.psms[1].setColor(0, 0, 1, 1)
         self.psms[2].setColor(1, 1, 0, 1)
@@ -89,7 +95,9 @@ class KinematicsRenderApp(BaseRenderApp):
 
     def load_frame(self, frame):
         if self.pose_ecm is not None:
-            self.apply_pose(self.ecm, self.pose_ecm[frame])
+            print('Frame {} Pose ECM:'.format(frame))
+            self.apply_pose(self.ecm, self.pose_ecm[frame], log=True)
+            print('')
 
         if self.pose_psm is not None:
             for i in range(3):
@@ -97,7 +105,7 @@ class KinematicsRenderApp(BaseRenderApp):
                 self.apply_pose(self.psms[i], transform_array)
 
     @staticmethod
-    def apply_pose(node, pose_array):
+    def apply_pose(node, pose_array, log=False):
         assert len(pose_array) == 12
 
         # Check if kinematics data is available, do nothing if it's not.
@@ -106,8 +114,13 @@ class KinematicsRenderApp(BaseRenderApp):
 
         R, t = tf.parse_dv_pose(pose_array)
         euler_degrees = np.rad2deg(tf.rot_matrix_to_euler(R))
-        node.setHpr(euler_degrees[0], euler_degrees[1], euler_degrees[2])
-        node.setPos(t[0], t[1], t[2])
+
+        if log:
+            print('Hpr:', euler_degrees)
+            print('Pos:', t)
+
+        node.setHpr(*euler_degrees)
+        node.setPos(*t)
 
     def shutdown_and_destroy(self):
         self.shutdown()

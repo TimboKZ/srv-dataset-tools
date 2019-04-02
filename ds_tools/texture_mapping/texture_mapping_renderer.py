@@ -18,7 +18,8 @@ class TextureMappingRenderApp(BaseRenderApp):
     ShaderTextureMode_Normal = 2
     ShaderTextureMode_Mask = 3
     ShaderTextureMode_Visibility = 4
-    ShaderTextureMode_END = 5
+    ShaderTextureMode_Frustum = 5
+    ShaderTextureMode_END = 6
 
     def __init__(self, width=None, height=None, headless=False):
         BaseRenderApp.__init__(self, title='Texture mapping visualiser', width=width, height=height, headless=headless)
@@ -211,6 +212,8 @@ class TextureMappingRenderApp(BaseRenderApp):
         else:
             self.setBackgroundColor(*self.default_bg)
 
+        print('Shader texture mode:', self.shader_texture_mode)
+
     def toggle_shader_mode(self):
         if self.shader_view_mode == self.ShaderViewMode_3D:
             self.shader_view_mode = self.ShaderViewMode_Texture
@@ -270,12 +273,29 @@ class TextureMappingRenderApp(BaseRenderApp):
 
 
 def main():
+    data_dir = util.get_data_dir()
+    model_path = path.join(data_dir, 'placenta_phantom_capture', 'placenta_mesh.obj')
+    texture_path = path.join(data_dir, 'placenta_phantom_capture', 'texture.png')
+    normal_map_path = None
+
     resource_dir = util.get_resource_dir()
-    model_path = path.join(resource_dir, '3d_assets', 'heart.obj')
-    texture_path = path.join(resource_dir, '3d_assets', 'T_heart_base3.png')
-    normal_map_path = path.join(resource_dir, '3d_assets', 'T_heart_n.png')
-    camera_image_path = path.join(resource_dir, 'heart_screenshots', '{}_screenshot.png')
-    capture_data_json_path = path.join(resource_dir, 'heart_screenshots', 'capture_data.json')
+    camera_image_path = path.join(resource_dir, 'placenta_phantom_images', '{}_screenshot.png')
+    capture_data_json_path = path.join(resource_dir, 'placenta_phantom_images', 'capture_data.json')
+
+    capture_folder_name = 'placenta_phantom_capture'
+    base_capture_path = path.join(resource_dir, capture_folder_name, 'base_{}.png')
+    texture_capture_path = path.join(resource_dir, capture_folder_name, '{}_{}.png')
+
+    # resource_dir = util.get_resource_dir()
+    # model_path = path.join(resource_dir, '3d_assets', 'heart.obj')
+    # texture_path = path.join(resource_dir, '3d_assets', 'T_heart_base3.png')
+    # normal_map_path = path.join(resource_dir, '3d_assets', 'T_heart_n.png')
+    # camera_image_path = path.join(resource_dir, 'heart_screenshots', '{}_screenshot.png')
+    # capture_data_json_path = path.join(resource_dir, 'heart_screenshots', 'capture_data.json')
+    #
+    # capture_folder_name = 'heart_texture_capture'
+    # base_capture_path = path.join(resource_dir, capture_folder_name, 'base_{}.png')
+    # texture_capture_path = path.join(resource_dir, capture_folder_name, '{}_{}.png')
 
     # Load capture data JSON
     capture_json = util.load_dict(capture_data_json_path)
@@ -287,7 +307,7 @@ def main():
 
     # When tex_mode is `true` the app captures reprojected textures in headless mode. When it is false, the app runs
     # in foreground and lets you explore the model.
-    tex_mode = False
+    tex_mode = True
 
     renderer = None
     if tex_mode:
@@ -302,10 +322,6 @@ def main():
                         normal_map_path=normal_map_path,
                         camera_film_size=camera_film_size,
                         camera_focal_length=camera_focal_length)
-
-    capture_folder_name = 'heart_texture_capture'
-    base_capture_path = path.join(resource_dir, capture_folder_name, 'base_{}.png')
-    texture_capture_path = path.join(resource_dir, capture_folder_name, '{}_{}.png')
 
     def capture_texture(texture_type, name, index=None):
         texture_capture = renderer.capture_shader_texture(texture_type)
@@ -334,6 +350,7 @@ def main():
 
             capture_texture(renderer.ShaderTextureMode_Projection, 'projection', i)
             capture_texture(renderer.ShaderTextureMode_Visibility, 'visibility', i)
+            capture_texture(renderer.ShaderTextureMode_Frustum, 'frustum', i)
 
     if not tex_mode:
         renderer.run()

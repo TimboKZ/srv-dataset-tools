@@ -30,6 +30,7 @@ def merge_textures(capture_data_json_path, texture_dir):
     projections = []
     projections_yuv = []
     visibility_maps = []
+    frustums = []
     for i in range(texture_count):
         projection = cv.imread(texture_capture_path.format(i, 'projection'))
         projections.append(projection)
@@ -37,8 +38,14 @@ def merge_textures(capture_data_json_path, texture_dir):
         projection_yuv = cv.cvtColor(projection[:, :, :3], cv.COLOR_BGR2YUV)
         projections_yuv.append(projection_yuv)
 
+        frustum = cv.imread(texture_capture_path.format(i, 'frustum'))
+        frustum = cv.cvtColor(frustum[:, :, :3], cv.COLOR_BGR2RGB)
+        frustum = (frustum.astype(float) / 255.0) * 2.0 - 1.0
+        frustums.append(frustum)
+
         visibility_map = cv.imread(texture_capture_path.format(i, 'visibility'), cv.IMREAD_GRAYSCALE)
         visibility_maps.append(visibility_map > 125)
+
     base_normal = cv.imread(base_capture_path.format('normal'))
     base_texture_mask_img = cv.imread(base_capture_path.format('mask'), cv.IMREAD_GRAYSCALE)
     base_texture_mask_inv_img = 255 - base_texture_mask_img
@@ -71,6 +78,7 @@ def merge_textures(capture_data_json_path, texture_dir):
 
         local_mask = np.logical_and(texture_mask, visibility_maps[i])
         projection_yuv = projections_yuv[i]
+        frustum = frustums[i]
 
         # Compute incidence angle for each pixel in the image
         incidence_angles = np.zeros((height, width))
@@ -104,6 +112,13 @@ def merge_textures(capture_data_json_path, texture_dir):
                 if luma_Y > intensity_threshold:
                     intensity_diff = luma_Y - intensity_threshold
                     confidence *= 1.0 - intensity_diff / (255.0 - intensity_threshold)
+
+                # Decay confidence next to borders
+                border_buffer = 0.7
+                for frus_dim in frustum[y, x, :2]:
+                    frus_abs = np.abs(frus_dim) - border_buffer
+                    if frus_abs > 0:
+                        confidence *= 1.0 - frus_abs / (1.0 - border_buffer)
 
                 confidence_mat[y, x] = confidence
 
@@ -141,8 +156,8 @@ def merge_textures(capture_data_json_path, texture_dir):
 
 def main():
     resource_dir = util.get_resource_dir()
-    json_path = path.join(resource_dir, 'heart_screenshots', 'capture_data.json')
-    capture_path = path.join(resource_dir, 'heart_texture_capture')
+    json_path = path.join(resource_dir, 'placenta_phantom_images', 'capture_data.json')
+    capture_path = path.join(resource_dir, 'placenta_phantom_capture')
 
     merge_textures(json_path, capture_path)
 

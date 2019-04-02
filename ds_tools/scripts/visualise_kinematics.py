@@ -72,8 +72,8 @@ def init_video_viewer(video_capture, ecm_renderer):
 def main():
     # Tweak these paths to match your data
     data_dir = util.get_data_dir()
-    capture_dir = path.join(data_dir, 'new_phantom_capture_p1')
-    video_path = path.join(capture_dir, 'EndoscopeImageMemory_0_small.mp4')
+    capture_dir = path.join(data_dir, 'placenta_phantom_capture', 'synced')
+    video_path = path.join(capture_dir, 'EndoscopeImageMemory_0.avi')
     pose_ecm = load_numpy_csv(path.join(capture_dir, 'pose_ecm.csv'))
     pose_psm = load_numpy_csv(path.join(capture_dir, 'pose_psm.csv'))
 
