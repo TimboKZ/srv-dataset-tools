@@ -8,6 +8,7 @@
 #define ShaderTextureMode_Mask 3
 #define ShaderTextureMode_Visibility 4
 #define ShaderTextureMode_Frustum 5
+#define ShaderTextureMode_Light 6
 
 // Shader parameters
 uniform int ShaderViewMode;
@@ -17,6 +18,7 @@ uniform int ShaderTextureMode;
 uniform mat4 p3d_ModelViewProjectionMatrix;
 uniform mat4 proj_ModelViewMatrix;
 uniform mat4 proj_ProjectionMatrix;
+uniform vec3 LightPos;
 
 // Vertex inputs
 in vec4 p3d_Vertex;
@@ -27,6 +29,7 @@ in vec2 p3d_MultiTexCoord0;
 out vec4 vertex_pos_proj;
 out vec4 vertex_pos_3d;
 out vec3 vertex_normal;
+out vec3 vertex_to_light;
 out vec2 model_texcoord;
 out vec2 projection_texcoord;
 
@@ -35,6 +38,9 @@ void main() {
     vertex_pos_3d = p3d_ModelViewProjectionMatrix * p3d_Vertex;
     vertex_pos_proj = proj_ProjectionMatrix  * proj_ModelViewMatrix  * p3d_Vertex;
     vertex_normal = p3d_Normal;
+
+    // Compute the direction vector from current vertex to light source
+    vertex_to_light = normalize(LightPos - p3d_Vertex.xyz);
 
     // Figure out the texcoord on the camera image
     vec2 proj_tex_pos = (vertex_pos_proj.xyz / vertex_pos_proj.w).xy;

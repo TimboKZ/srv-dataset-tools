@@ -14,6 +14,7 @@ def prepare_3d_plot(title=None):
     ax.set_xlabel('X')
     ax.set_ylabel('Y')
     ax.set_zlabel('Z')
+    # ax.set_aspect('equal', 'box')
     return fig, ax
 
 
@@ -76,9 +77,7 @@ def draw_3d_camera(ax, width, height, cam_matrix, T, z=20):
 
     cam_orig = np.zeros((3, 1))
     cam = tf.apply_transform(cam_orig, T)
-    # cam = R @ cam_orig + t
     world_corners = tf.apply_transform(cam_corners, T)
-    # world_corners = R @ cam_corners + t
 
     for i in range(4):
         corners = np.hstack([world_corners[:, [i, (i + 1) % 4]], cam])

@@ -21,7 +21,11 @@ class RenderApp(BaseRenderApp):
 
         # self.hpr_adjustment = LVecBase3f(39, 127, 20)
         # self.pos_adjustment = LVecBase3f(-1, -2, 0.5)
-        self.hpr_adjustment = LVecBase3f(0)
+        # self.hpr_adjustment = LVecBase3f(25.5, 131.5, 20.5)
+        # self.pos_adjustment = LVecBase3f(10.5, -2, 10)
+        # self.hpr_adjustment = LVecBase3f(32.25, 131.25, 18)
+        # self.pos_adjustment = LVecBase3f(2.75, 3, 7.75)
+        self.hpr_adjustment = LVecBase3f(0, 0, -90)
         self.pos_adjustment = LVecBase3f(0)
 
         self.onscreen_image = None
@@ -58,30 +62,92 @@ class RenderApp(BaseRenderApp):
             markers_model = self.loader.loadModel(endoscope_markers_path)
             markers_model.reparentTo(render)
 
-        self.disableMouse()
+        fx = cam_matrix[0, 0]
+        fy = cam_matrix[1, 1]
+        cx = cam_matrix[0, 2]
+        cy = cam_matrix[1, 2]
+
+        T = tf.to_transform(R, t)
+
+        cam_orig = np.zeros((3, 1))
+        cam = tf.apply_transform(cam_orig, T)
+
+        cube = self.loader.loadModel('models/box')
+        cube.reparentTo(self.render)
+        cube.setColor(0, 1, 0, 1)
+        cube.setScale(0.15)
+        cube.setPos(*cam)
+
+        for i in range(50):
+            z = i * 1
+            img_corners = np.array([
+                [0, self.width, self.width, 0],
+                [0, 0, self.height, self.height]
+            ]).astype(float)
+            img_corners[0, :] *= z
+            img_corners[1, :] *= z
+            cam_corners = img_corners.copy()
+            cam_corners[0, :] -= cx * z
+            cam_corners[0, :] /= fx
+            cam_corners[1, :] -= cy * z
+            cam_corners[1, :] /= fy
+            cam_corners = np.vstack([cam_corners, np.repeat(z, 4)])
+            world_corners = tf.apply_transform(cam_corners, T)
+            print(np.mean(world_corners, axis=1) / 4.0)
+            for j in range(4):
+                cube = self.loader.loadModel('models/box')
+                cube.reparent_to(self.render)
+                pos = world_corners[:, j]
+                cube.setColor(1, 0, 0, 1)
+                cube.setScale(0.05)
+                cube.setPos(*pos)
+
+        self.toggleTexture()
 
         # Set camera pose - not that we need to add 90 to pitch for the camera to be aligned correctly.
         euler_degrees = np.rad2deg(tf.rot_matrix_to_euler(R))
         fixed_euler_degrees = [self.hpr_adjustment[0], self.hpr_adjustment[1], self.hpr_adjustment[2]] + euler_degrees
         fixed_pos = [self.pos_adjustment[0], self.pos_adjustment[1], self.pos_adjustment[2]] + t
 
-        fixed_euler_degrees = [-33.073097229003906, 152.8730010986328, 204.61900329589844]
-        fixed_pos = [-254.94598388671875, -169.5260009765625, -115.77900695800781]
+        # fixed_euler_degrees = [150.69981384277344, 32.22336959838867, -26.061622619628906]
+        # fixed_pos = [-215.63949584960938, -184.4008331298828, -120.99508666992188]
 
+        cube1 = self.loader.loadModel('models/box')
+        cube2 = self.loader.loadModel('models/box')
+        cube1.reparentTo(self.main_camera_parent)
+        cube2.reparentTo(self.main_camera_parent)
+
+        cube1.setScale(0.05)
+        cube2.setScale(0.05)
+        cube1.setColor(1, 0, 0)
+        cube2.setColor(0, 1, 0)
+
+        cube1.setPos(0, 0, 0)
+        cube2.setPos(0, 1, 0)
+
+        self.disableMouse()
         self.main_camera_parent.setHpr(*fixed_euler_degrees)
-        self.main_camera_parent.setPos(*fixed_pos)
+        self.main_camera_parent.setPos(*cam)
+        self.main_camera_np.setHpr(0, 0, 0)
+        self.main_camera_np.setPos(0, 0, 0)
+
+        pos1 = cube1.getNetTransform().getPos()
+        pos2 = cube2.getNetTransform().getPos()
+        normal = (pos2 - pos1).normalized()
+        print(normal)
 
         # Set camera focal length
-        f_x, f_y = cam_matrix[0, 0], cam_matrix[1, 1]
-        focal_length = f_x
-        self.main_lens.setFilmSize(self.width, self.height)
-        self.main_lens.setFocalLength(focal_length)
+        # f_x, f_y = cam_matrix[0, 0], cam_matrix[1, 1]
+        # focal_length = f_x
+        # self.main_lens.setFilmSize(self.width, self.height)
+        # self.main_lens.setFocalLength(focal_length)
 
-        # fov_x = 2 * np.arctan(self.width / (2 * f_x))
-        # fov_x = np.rad2deg(fov_x)
-        # fov_y = 2 * np.arctan(self.height / (2 * f_y))
-        # fov_y = np.rad2deg(fov_y)
-        # self.main_lens.setFov(fov_x, fov_y)
+        fov_x = 2 * np.arctan(self.width / (2 * fx))
+        fov_x = np.rad2deg(fov_x)
+        fov_y = 2 * np.arctan(self.height / (2 * fy))
+        fov_y = np.rad2deg(fov_y)
+        self.main_lens.setFov(fov_x, fov_y)
+        self.main_lens.setNear(0.5)
 
         print('FOV:', self.main_lens.getFov())
 
@@ -93,7 +159,7 @@ class RenderApp(BaseRenderApp):
         self.accept('n', self.adjust_camera_hpr, [LVecBase3f(0, 0, +magnitude)])
         self.accept('m', self.adjust_camera_hpr, [LVecBase3f(0, 0, -magnitude)])
 
-        magnitude = 1
+        magnitude = 0.5
         self.accept('a', self.adjust_camera_pos, [LVecBase3f(+magnitude, 0, 0)])
         self.accept('d', self.adjust_camera_pos, [LVecBase3f(-magnitude, 0, 0)])
         self.accept('q', self.adjust_camera_pos, [LVecBase3f(0, +magnitude, 0)])
@@ -181,21 +247,33 @@ def main():
     # This function is here for testing purposes
     width, height = 720, 576
     data_dir = util.get_data_dir()
-    capture_dir = path.join(data_dir, 'placenta_phantom_capture')
-    phantom_model_path = path.join(capture_dir, 'placenta_mesh.stl')
+    capture_dir = path.join(data_dir, 'placenta_phantom_calib')
+    phantom_model_path = path.join(capture_dir, 'calib_markers.stl')
     endoscope_markers_path = path.join(capture_dir, 'endo_markers.stl')
     T_cam_to_world = np.array([
-        [-9.68176662e-01, 1.67576317e-01, - 1.85882030e-01, - 2.29945901e+02],
-        [3.18028233e-02, - 6.54331106e-01, - 7.55539135e-01, - 1.73525540e+02],
-        [-2.48238860e-01, - 7.37406931e-01, 6.28178706e-01, - 1.28278633e+02],
+        [-9.78468121e-01, 8.60633698e-02, - 1.87598594e-01, - 2.30322506e+02],
+        [7.40405698e-02, - 7.02060977e-01, - 7.08257283e-01, - 2.04506575e+02],
+        [-1.92660661e-01, - 7.06897080e-01, 6.80572104e-01, - 1.07519998e+02],
         [0.00000000e+00, 0.00000000e+00, 0.00000000e+00, 1.00000000e+00]
     ])
+
     R, t = tf.from_transform(T_cam_to_world)
     cam_matrix = np.array([
         [773.25415039, 0., 384.09088309],
         [0., 842.88543701, 276.08463295],
         [0., 0., 1.],
     ])
+
+    a = np.array([0.70689599, 0.68057399, 0.192658])
+    b = np.array([-0.15580644, -0.72006735, 0.6761859])
+    v = np.cross(a, b)
+    c = np.dot(a, b)
+    s = np.linalg.norm(v)
+    I = np.identity(3)
+    vXStr = '{} {} {}; {} {} {}; {} {} {}'.format(0, -v[2], v[1], v[2], 0, -v[0], -v[1], v[0], 0)
+    k = np.matrix(vXStr)
+    r = I + k + k @ k * ((1 - c) / (s ** 2))
+    R = R @ np.linalg.pinv(r)
 
     test_headless = False
     if test_headless:
@@ -208,8 +286,9 @@ def main():
         app = RenderApp(width=width, height=height)
         app.init_scene(R=R, t=t, cam_matrix=cam_matrix, phantom_model_path=phantom_model_path,
                        endoscope_markers_path=endoscope_markers_path,
-                       onscreen_image_path=path.join(util.get_resource_dir(), 'placenta_phantom_images',
-                                                     '5_screenshot.png'))
+                       onscreen_image_path=path.join(capture_dir, 'scan_5_rectified_markers.png'))
+        # onscreen_image_path=path.join(util.get_resource_dir(), 'placenta_phantom_images',
+        #                               '5_screenshot.png'))
         app.run()
 
 

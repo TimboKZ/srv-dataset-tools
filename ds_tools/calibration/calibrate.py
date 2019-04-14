@@ -86,12 +86,12 @@ def get_detected_chessboard_points(video_cap_or_frames, cb_size, frames_with_pat
     return world_points, img_points
 
 
-def calculate_camera_intrinsics(points_3d, points_2d, sample_frame):
+def calculate_camera_intrinsics(points_3d, points_2d, sample_frame, dist_coeffs=None):
     (ret,
      cam_matrix,
      dist_coeffs,
      rvecs,
-     tvecs) = cv.calibrateCamera(points_3d, points_2d, sample_frame.shape[:2], None, None)
+     tvecs) = cv.calibrateCamera(points_3d, points_2d, sample_frame.shape[:2], None, dist_coeffs)
     return cam_matrix, dist_coeffs, rvecs, tvecs
 
 

@@ -8,6 +8,7 @@
 #define ShaderTextureMode_Mask 3
 #define ShaderTextureMode_Visibility 4
 #define ShaderTextureMode_Frustum 5
+#define ShaderTextureMode_Light 6
 
 // Shader parameters
 uniform int ShaderViewMode;
@@ -21,6 +22,7 @@ uniform sampler2D ProjectionTexture;
 in vec4 vertex_pos_proj;
 in vec4 vertex_pos_3d;
 in vec3 vertex_normal;
+in vec3 vertex_to_light;
 in vec2 model_texcoord;
 in vec2 projection_texcoord;
 
@@ -52,6 +54,9 @@ void main() {
         projection_mask = vec4(0, 0, 0, 1);
     }
 
+    vec3 proj_frustum = (vertex_pos_proj.xyz / vertex_pos_proj.w).xyz;
+    vec3 proj_frustum_0_to_1 = (proj_frustum + 1) / 2.0;
+
     if (ShaderTextureMode == ShaderTextureMode_Projection) {
         frag_color = projection_color.rgba;
 
@@ -66,14 +71,15 @@ void main() {
         frag_color = projection_mask;
 
     } else if (ShaderTextureMode == ShaderTextureMode_Frustum) {
-        vec3 proj_frustum = (vertex_pos_proj.xyz / vertex_pos_proj.w).xyz;
-        vec3 proj_frustum_0_to_1 = (proj_frustum + 1) / 2.0;
-
         if (valid_texcoord(proj_frustum_0_to_1.xy)) {
             frag_color = vec4(proj_frustum_0_to_1, 1.0);
         } else {
             frag_color = vec4(0);
         }
+
+    } else if (ShaderTextureMode == ShaderTextureMode_Light) {
+        vec3 to_light_0_to_1 = (vertex_to_light + 1) / 2.0;
+        frag_color = vec4(to_light_0_to_1, 1.0);
 
     } else {
         // ShaderTextureMode == ShaderTextureMode_Default

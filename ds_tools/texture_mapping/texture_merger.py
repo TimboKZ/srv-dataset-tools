@@ -31,6 +31,7 @@ def merge_textures(capture_data_json_path, texture_dir):
     projections_yuv = []
     visibility_maps = []
     frustums = []
+    light_maps = []
     for i in range(texture_count):
         projection = cv.imread(texture_capture_path.format(i, 'projection'))
         projections.append(projection)
@@ -42,6 +43,13 @@ def merge_textures(capture_data_json_path, texture_dir):
         frustum = cv.cvtColor(frustum[:, :, :3], cv.COLOR_BGR2RGB)
         frustum = (frustum.astype(float) / 255.0) * 2.0 - 1.0
         frustums.append(frustum)
+
+        light_map = cv.imread(texture_capture_path.format(i, 'light'))
+        light_map = cv.cvtColor(light_map[:, :, :3], cv.COLOR_BGR2RGB)
+        light_map = (light_map.astype(float) / 255.0) * 2.0 - 1.0
+        light_map_sizes = cv_util.expand_2d_to_3d(la.norm(light_map, axis=2), 3)
+        light_map /= light_map_sizes
+        light_maps.append(light_map)
 
         visibility_map = cv.imread(texture_capture_path.format(i, 'visibility'), cv.IMREAD_GRAYSCALE)
         visibility_maps.append(visibility_map > 125)
@@ -74,11 +82,10 @@ def merge_textures(capture_data_json_path, texture_dir):
     # Compute confidence scores for all pixels
     confidences = np.zeros((texture_count, height, width))
     for i in range(texture_count):
-        camera_normal = np.array(all_camera_normal[i])
-
         local_mask = np.logical_and(texture_mask, visibility_maps[i])
         projection_yuv = projections_yuv[i]
         frustum = frustums[i]
+        light_map = light_maps[i]
 
         # Compute incidence angle for each pixel in the image
         incidence_angles = np.zeros((height, width))
@@ -88,7 +95,8 @@ def merge_textures(capture_data_json_path, texture_dir):
                     continue
 
                 pixel_normal = base_normal[y, x, :]
-                incidence_angles[y, x] = 180 - tf.angle_between(pixel_normal, camera_normal, normalize=False)
+                vertex_to_light = light_map[y, x, :]
+                incidence_angles[y, x] = tf.angle_between(pixel_normal, vertex_to_light, normalize=False)
 
         # Compute the confidence scores
         confidence_mat = np.zeros((height, width), dtype=np.float32)
@@ -108,17 +116,20 @@ def merge_textures(capture_data_json_path, texture_dir):
 
                 # Try to remove specular highlights based on intensity
                 luma_Y = projection_yuv[y, x, 0]
-                intensity_threshold = 30.0
+                intensity_threshold = 50.0
+                intensity_range = 255.0 - intensity_threshold
                 if luma_Y > intensity_threshold:
                     intensity_diff = luma_Y - intensity_threshold
-                    confidence *= 1.0 - intensity_diff / (255.0 - intensity_threshold)
+                    intensity_score = 1.0 - intensity_diff / intensity_range
+                    confidence *= intensity_score ** 4
 
                 # Decay confidence next to borders
                 border_buffer = 0.7
                 for frus_dim in frustum[y, x, :2]:
                     frus_abs = np.abs(frus_dim) - border_buffer
                     if frus_abs > 0:
-                        confidence *= 1.0 - frus_abs / (1.0 - border_buffer)
+                        border_score = 1.0 - frus_abs / (1.0 - border_buffer)
+                        confidence *= border_score ** 2
 
                 confidence_mat[y, x] = confidence
 
@@ -156,6 +167,8 @@ def merge_textures(capture_data_json_path, texture_dir):
 
 def main():
     resource_dir = util.get_resource_dir()
+    # json_path = path.join(resource_dir, 'heart_screenshots', 'capture_data.json')
+    # capture_path = path.join(resource_dir, 'heart_texture_capture')
     json_path = path.join(resource_dir, 'placenta_phantom_images', 'capture_data.json')
     capture_path = path.join(resource_dir, 'placenta_phantom_capture')
 
