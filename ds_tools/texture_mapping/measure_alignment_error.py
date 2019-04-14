@@ -1,7 +1,9 @@
+from joblib import Parallel, delayed
 from itertools import combinations
 from os import path
 import numpy as np
 import cv2 as cv
+import time
 
 # Our local modules
 from ds_tools.shared import util, cv_util
@@ -36,10 +38,29 @@ def measure_error(true_texture_path, reconst_texture_path, mask_path, output_pat
 
 
 def compute_alignment_error_between(proj_A, mask_A, proj_B, mask_B):
-    e = 0
-    n = 0
     h, w = proj_A.shape
     mask = np.logical_and(mask_A, mask_B)
+
+    # do_parallel = False
+    # if do_parallel:
+    #     def compute_error(y):
+    #         le = 0
+    #         ln = 0
+    #         for x in range(w):
+    #             if not mask[y, x]:
+    #                 continue
+    #
+    #             diff = np.abs(float(proj_A[y, x]) - float(proj_B[y, x]))
+    #             le += diff
+    #             ln += 1
+    #         return le, ln
+    #
+    #     errors = Parallel(n_jobs=10)(delayed(compute_error)(y) for y in range(h))
+    #     e, n = np.sum(errors, axis=0)
+    #     return e, n
+    # else:
+    e = 0
+    n = 0
     for y in range(h):
         for x in range(w):
             if not mask[y, x]:
@@ -48,7 +69,6 @@ def compute_alignment_error_between(proj_A, mask_A, proj_B, mask_B):
             diff = np.abs(float(proj_A[y, x]) - float(proj_B[y, x]))
             e += diff
             n += 1
-
     return e, n
 
 
@@ -88,7 +108,11 @@ def main():
     output_path_template = path.join(capture_path, '{}_edges.png')
     total_images = 10
 
+    start = time.time()
     measure_alignment_error(projection_path_template, confidence_path_template, output_path_template, total_images)
+    end = time.time()
+    duration = end - start
+    print('Time taken: {}s'.format(np.round(duration, 2)))
 
 
 if __name__ == '__main__':

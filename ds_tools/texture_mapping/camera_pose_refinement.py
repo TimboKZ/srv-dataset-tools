@@ -1,3 +1,4 @@
+from scipy import optimize as opt
 from panda3d.core import *
 from os import path
 import numpy as np
@@ -49,6 +50,10 @@ class TextureMappingRenderApp(BaseRenderApp):
 
         self.camera_film_size = None
         self.camera_focal_length = None
+
+        self.projection_camera_np = None
+        self.projection_lens = None
+        self.normal_box = None
 
     def init_scene(self, model_path, texture_path,
                    camera_film_size=None,
@@ -210,8 +215,29 @@ class TextureMappingRenderApp(BaseRenderApp):
         self.model.setShaderInput('proj_ProjectionMatrix', projection_lens.getProjectionMat())
         self.model.setShaderInput('LightPos', projection_camera_np.getNetTransform().getPos())
 
-        # Delete all unnecessary nodes and objects
-        projection_camera_np.removeNode()
+        # Record all necessary objects
+        self.projection_camera_np = projection_camera_np
+        self.projection_lens = projection_lens
+        self.normal_box = normal_box
+
+    def update_camera_pose(self, camera_pos, camera_hpr):
+        if self.projection_camera_np is None:
+            raise ValueError('Projection camera is none!')
+
+        self.projection_camera_np.setPos(*camera_pos)
+        self.projection_camera_np.setHpr(*camera_hpr)
+
+        self.main_camera_np.setPos(*camera_pos)
+        self.main_camera_np.setHpr(*camera_hpr)
+
+        normal_box_pos = self.normal_box.getNetTransform().getPos()
+        cam_pos = self.projection_camera_np.getPos()
+        normal = (normal_box_pos - cam_pos).normalized()
+        self.last_projection_camera_normal = normal
+
+        self.model.setShaderInput('proj_ModelViewMatrix', self.model.getMat(self.projection_camera_np))
+        self.model.setShaderInput('proj_ProjectionMatrix', self.projection_lens.getProjectionMat())
+        self.model.setShaderInput('LightPos', self.projection_camera_np.getNetTransform().getPos())
 
     def toggle_shader(self):
         self.shader_texture_mode = (self.shader_texture_mode + 1) % self.ShaderTextureMode_END
@@ -282,28 +308,45 @@ class TextureMappingRenderApp(BaseRenderApp):
         self.screenshot_count += 1
 
 
+def compute_alignment_error_between(proj_A, mask_A, proj_B, mask_B):
+    h, w = proj_A.shape
+    mask = np.logical_and(mask_A, mask_B)
+
+    e = 0
+    n = 0
+    for y in range(h):
+        for x in range(w):
+            if not mask[y, x]:
+                continue
+
+            diff = np.abs(float(proj_A[y, x]) - float(proj_B[y, x]))
+            e += diff
+            n += 1
+    return e, n
+
+
 def main():
     data_dir = util.get_data_dir()
     resource_dir = util.get_resource_dir()
 
-    # model_path = path.join(data_dir, 'placenta_phantom_capture', 'placenta_mesh.obj')
-    # texture_path = path.join(data_dir, 'placenta_phantom_capture', 'texture.png')
-    # normal_map_path = None
-    # camera_image_path = path.join(resource_dir, 'placenta_phantom_images', '{}_screenshot.png')
-    # capture_data_json_path = path.join(resource_dir, 'placenta_phantom_images', 'capture_data.json')
-    # capture_folder_name = 'placenta_phantom_capture'
-    # base_capture_path = path.join(resource_dir, capture_folder_name, 'base_{}.png')
-    # texture_capture_path = path.join(resource_dir, capture_folder_name, '{}_{}.png')
-
-    # model_path = path.join(resource_dir, '3d_assets', 'heart.egg')
-    model_path = path.join(resource_dir, '3d_assets', 'heart.obj')
-    texture_path = path.join(resource_dir, '3d_assets', 'T_heart_base3.png')
-    normal_map_path = path.join(resource_dir, '3d_assets', 'T_heart_n.png')
-    camera_image_path = path.join(resource_dir, 'heart_screenshots', '{}_screenshot.png')
-    capture_data_json_path = path.join(resource_dir, 'heart_screenshots', 'capture_data.json')
-    capture_folder_name = 'heart_texture_capture'
+    model_path = path.join(data_dir, 'placenta_phantom_capture', 'placenta_mesh.obj')
+    texture_path = path.join(data_dir, 'placenta_phantom_capture', 'texture.png')
+    normal_map_path = None
+    camera_image_path = path.join(resource_dir, 'placenta_phantom_images', '{}_screenshot.png')
+    capture_data_json_path = path.join(resource_dir, 'placenta_phantom_images', 'capture_data.json')
+    capture_folder_name = 'placenta_phantom_capture'
     base_capture_path = path.join(resource_dir, capture_folder_name, 'base_{}.png')
     texture_capture_path = path.join(resource_dir, capture_folder_name, '{}_{}.png')
+
+    # model_path = path.join(resource_dir, '3d_assets', 'heart.egg')
+    # model_path = path.join(resource_dir, '3d_assets', 'heart.obj')
+    # texture_path = path.join(resource_dir, '3d_assets', 'T_heart_base3.png')
+    # normal_map_path = path.join(resource_dir, '3d_assets', 'T_heart_n.png')
+    # camera_image_path = path.join(resource_dir, 'heart_screenshots', '{}_screenshot.png')
+    # capture_data_json_path = path.join(resource_dir, 'heart_screenshots', 'capture_data.json')
+    # capture_folder_name = 'heart_texture_capture'
+    # base_capture_path = path.join(resource_dir, capture_folder_name, 'base_{}.png')
+    # texture_capture_path = path.join(resource_dir, capture_folder_name, '{}_{}.png')
 
     # Load capture data JSON
     capture_json = util.load_dict(capture_data_json_path)
@@ -315,15 +358,9 @@ def main():
 
     # When tex_mode is `true` the app captures reprojected textures in headless mode. When it is false, the app runs
     # in foreground and lets you explore the model.
-    tex_mode = True
-
-    renderer = None
-    if tex_mode:
-        texture_cv = cv.imread(texture_path)
-        texture_height, texture_width = texture_cv.shape[:2]
-        renderer = TextureMappingRenderApp(width=texture_width, height=texture_height, headless=True)
-    else:
-        renderer = TextureMappingRenderApp(width=720, height=576, headless=False)
+    texture_cv = cv.imread(texture_path)
+    texture_height, texture_width = texture_cv.shape[:2]
+    renderer = TextureMappingRenderApp(width=texture_width, height=texture_height, headless=True)
 
     renderer.init_scene(model_path=model_path,
                         texture_path=texture_path,
@@ -339,34 +376,54 @@ def main():
             save_path = base_capture_path.format(name)
         cv.imwrite(save_path, texture_capture)
 
-    for i in range(len(camera_pos)):
-        print('Processing screenshot {}...'.format(i))
+    base_image_index = 0
+    base_projection = cv.imread(texture_capture_path.format(base_image_index, 'projection'), cv.IMREAD_GRAYSCALE)
+    base_projection = cv.Laplacian(base_projection, cv.CV_8UC1)
+    base_projection = cv.blur(base_projection, (3, 3))
+    base_mask = (cv.imread(texture_capture_path.format(base_image_index, 'confidence'), cv.IMREAD_GRAYSCALE) > 5)
 
-        renderer.update_projection(camera_image_path=camera_image_path.format(i),
-                                   camera_pos=camera_pos[i],
-                                   camera_hpr=camera_hpr[i])
+    new_image_index = 1
+    new_image_path = camera_image_path.format(new_image_index)
 
-        # Extract camera normal for this screenshot
-        camera_normal = renderer.last_projection_camera_normal
-        camera_normals.append([camera_normal[0], camera_normal[1], camera_normal[2]])
+    cam_pos = camera_pos[new_image_index]
+    cam_hpr = camera_hpr[new_image_index]
 
-        if tex_mode:
-            if i == 0:
-                capture_texture(renderer.ShaderTextureMode_Default, 'texture')
-                capture_texture(renderer.ShaderTextureMode_Normal, 'normal')
-                capture_texture(renderer.ShaderTextureMode_Mask, 'mask')
+    renderer.update_projection(camera_image_path=new_image_path,
+                               camera_pos=cam_pos,
+                               camera_hpr=cam_hpr)
 
-            capture_texture(renderer.ShaderTextureMode_Projection, 'projection', i)
-            capture_texture(renderer.ShaderTextureMode_Visibility, 'visibility', i)
-            capture_texture(renderer.ShaderTextureMode_Frustum, 'frustum', i)
-            capture_texture(renderer.ShaderTextureMode_Light, 'light', i)
+    def loss(params, log=True):
+        renderer.update_camera_pose(params[:3], params[3:])
+        new_projection = renderer.capture_shader_texture(renderer.ShaderTextureMode_Projection)
+        new_projection = cv.cvtColor(new_projection, cv.COLOR_RGB2GRAY)
+        new_projection = cv.Laplacian(new_projection, cv.CV_8UC1)
+        new_projection = cv.blur(new_projection, (3, 3))
+        new_mask = (renderer.capture_shader_texture(renderer.ShaderTextureMode_Visibility)[:, :, 0] > 10)
 
-    if not tex_mode:
-        renderer.run()
+        e, n = compute_alignment_error_between(base_projection, base_mask, new_projection, new_mask)
+        loss_val = e / n + 329745 / n
+        if log:
+            print('Loss:', np.round(loss_val, 3))
+        return loss_val
+
+    init_params = cam_pos + cam_hpr
+
+    new_params = opt.fmin_cg(loss, init_params, epsilon=0.5, gtol=0.1, disp=True)
+
+    print('Initial loss:', np.round(loss(init_params, False), 6))
+    print('Final loss:', np.round(loss(new_params, False), 6))
+    print('')
+    print('New pos:', new_params[:3])
+    print('New hpr:', new_params[3:])
+
+    # capture_texture(renderer.ShaderTextureMode_Projection, 'projection', i)
+    # capture_texture(renderer.ShaderTextureMode_Visibility, 'visibility', i)
+    # capture_texture(renderer.ShaderTextureMode_Frustum, 'frustum', i)
+    # capture_texture(renderer.ShaderTextureMode_Light, 'light', i)
 
     # Save camera normals (they will be used for texture reconstruction)
-    capture_json['camera_normal'] = camera_normals
-    util.save_dict(capture_data_json_path, capture_json)
+    # capture_json['camera_normal'] = camera_normals
+    # util.save_dict(capture_data_json_path, capture_json)
 
     renderer.shutdown_and_destroy()
 

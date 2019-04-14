@@ -286,24 +286,24 @@ def main():
     data_dir = util.get_data_dir()
     resource_dir = util.get_resource_dir()
 
-    # model_path = path.join(data_dir, 'placenta_phantom_capture', 'placenta_mesh.obj')
-    # texture_path = path.join(data_dir, 'placenta_phantom_capture', 'texture.png')
-    # normal_map_path = None
-    # camera_image_path = path.join(resource_dir, 'placenta_phantom_images', '{}_screenshot.png')
-    # capture_data_json_path = path.join(resource_dir, 'placenta_phantom_images', 'capture_data.json')
-    # capture_folder_name = 'placenta_phantom_capture'
-    # base_capture_path = path.join(resource_dir, capture_folder_name, 'base_{}.png')
-    # texture_capture_path = path.join(resource_dir, capture_folder_name, '{}_{}.png')
-
-    # model_path = path.join(resource_dir, '3d_assets', 'heart.egg')
-    model_path = path.join(resource_dir, '3d_assets', 'heart.obj')
-    texture_path = path.join(resource_dir, '3d_assets', 'T_heart_base3.png')
-    normal_map_path = path.join(resource_dir, '3d_assets', 'T_heart_n.png')
-    camera_image_path = path.join(resource_dir, 'heart_screenshots', '{}_screenshot.png')
-    capture_data_json_path = path.join(resource_dir, 'heart_screenshots', 'capture_data.json')
-    capture_folder_name = 'heart_texture_capture'
+    model_path = path.join(data_dir, 'placenta_phantom_capture', 'placenta_mesh.obj')
+    texture_path = path.join(data_dir, 'placenta_phantom_capture', 'texture.png')
+    normal_map_path = None
+    camera_image_path = path.join(resource_dir, 'placenta_phantom_images', '{}_screenshot.png')
+    capture_data_json_path = path.join(resource_dir, 'placenta_phantom_images', 'capture_data.json')
+    capture_folder_name = 'placenta_phantom_capture'
     base_capture_path = path.join(resource_dir, capture_folder_name, 'base_{}.png')
     texture_capture_path = path.join(resource_dir, capture_folder_name, '{}_{}.png')
+
+    # model_path = path.join(resource_dir, '3d_assets', 'heart.egg')
+    # model_path = path.join(resource_dir, '3d_assets', 'heart.obj')
+    # texture_path = path.join(resource_dir, '3d_assets', 'T_heart_base3.png')
+    # normal_map_path = path.join(resource_dir, '3d_assets', 'T_heart_n.png')
+    # camera_image_path = path.join(resource_dir, 'heart_screenshots', '{}_screenshot.png')
+    # capture_data_json_path = path.join(resource_dir, 'heart_screenshots', 'capture_data.json')
+    # capture_folder_name = 'heart_texture_capture'
+    # base_capture_path = path.join(resource_dir, capture_folder_name, 'base_{}.png')
+    # texture_capture_path = path.join(resource_dir, capture_folder_name, '{}_{}.png')
 
     # Load capture data JSON
     capture_json = util.load_dict(capture_data_json_path)
@@ -339,7 +339,7 @@ def main():
             save_path = base_capture_path.format(name)
         cv.imwrite(save_path, texture_capture)
 
-    for i in range(len(camera_pos)):
+    for i in [1]:  # range(len(camera_pos)):
         print('Processing screenshot {}...'.format(i))
 
         renderer.update_projection(camera_image_path=camera_image_path.format(i),
