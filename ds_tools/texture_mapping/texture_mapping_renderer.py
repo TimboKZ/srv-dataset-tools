@@ -46,8 +46,6 @@ class TextureMappingRenderApp(BaseRenderApp):
 
         self.default_bg = [1.0, 1.0, 1.0, 1.0]
 
-        self.last_projection_camera_normal = None
-
         self.camera_film_size = None
         self.camera_focal_length = None
 
@@ -162,18 +160,8 @@ class TextureMappingRenderApp(BaseRenderApp):
         projection_camera_np.setPos(*camera_pos)
         projection_camera_np.setHpr(*camera_hpr)
 
-        normal_box = self.loader.loadModel('models/box')
-        normal_box.reparentTo(projection_camera_np)
-        normal_box.setScale(0.0001)
-        normal_box.setPos(0, 2, 0)
-
-        normal_box_pos = normal_box.getNetTransform().getPos()
-        cam_pos = projection_camera_np.getPos()
-        normal = (normal_box_pos - cam_pos).normalized()
-        self.last_projection_camera_normal = normal
-
         # Move actual render camera to the same position
-        # self.disableMouse()
+        self.disableMouse()
         self.main_camera_np.setPos(*camera_pos)
         self.main_camera_np.setHpr(*camera_hpr)
 
@@ -287,36 +275,17 @@ class TextureMappingRenderApp(BaseRenderApp):
 
 
 def main():
-    data_dir = util.get_data_dir()
     resource_dir = util.get_resource_dir()
+    assets_dir = path.join(resource_dir, '3d_assets')
 
-    model_path = path.join(resource_dir, '3d_assets', 'iousfan.obj')
-    texture_path = path.join(resource_dir, '3d_assets', 'iousfan.png')
+    model_path = path.join(assets_dir, 'placenta.obj')
+    texture_path = path.join(assets_dir, 'placenta.png')
     normal_map_path = None
-    camera_image_path = path.join(resource_dir, 'iousfan_images', '{}_screenshot.png')
-    capture_data_json_path = path.join(resource_dir, 'iousfan_images', 'capture_data.json')
-    capture_folder_name = 'iousfan_capture'
-    base_capture_path = path.join(resource_dir, capture_folder_name, 'base_{}.png')
-    texture_capture_path = path.join(resource_dir, capture_folder_name, '{}_{}.png')
-
-    # model_path = path.join(data_dir, 'placenta_phantom_capture', 'placenta_mesh.obj')
-    # texture_path = path.join(data_dir, 'placenta_phantom_capture', 'texture.png')
-    # normal_map_path = None
-    # camera_image_path = path.join(resource_dir, 'placenta_phantom_images', '{}_screenshot.png')
-    # capture_data_json_path = path.join(resource_dir, 'placenta_phantom_images', 'capture_data.json')
-    # capture_folder_name = 'placenta_phantom_capture'
-    # base_capture_path = path.join(resource_dir, capture_folder_name, 'base_{}.png')
-    # texture_capture_path = path.join(resource_dir, capture_folder_name, '{}_{}.png')
-
-    # model_path = path.join(resource_dir, '3d_assets', 'heart.egg')
-    # model_path = path.join(resource_dir, '3d_assets', 'heart.obj')
-    # texture_path = path.join(resource_dir, '3d_assets', 'T_heart_base3.png')
-    # normal_map_path = path.join(resource_dir, '3d_assets', 'T_heart_n.png')
-    # camera_image_path = path.join(resource_dir, 'heart_screenshots', '{}_screenshot.png')
-    # capture_data_json_path = path.join(resource_dir, 'heart_screenshots', 'capture_data.json')
-    # capture_folder_name = 'heart_texture_capture'
-    # base_capture_path = path.join(resource_dir, capture_folder_name, 'base_{}.png')
-    # texture_capture_path = path.join(resource_dir, capture_folder_name, '{}_{}.png')
+    camera_image_path = path.join(resource_dir, 'placenta_images', '{}_screenshot.png')
+    capture_data_json_path = path.join(resource_dir, 'placenta_images', 'capture_data.json')
+    capture_folder_path = path.join(resource_dir, 'placenta_texture')
+    base_capture_path = path.join(capture_folder_path, 'base_{}.png')
+    texture_capture_path = path.join(capture_folder_path, '{}_{}.png')
 
     # Load capture data JSON
     capture_json = util.load_dict(capture_data_json_path)
@@ -324,7 +293,6 @@ def main():
     camera_focal_length = capture_json.get('camera_focal_length')
     camera_pos = capture_json['camera_pos']
     camera_hpr = capture_json['camera_hpr']
-    camera_normals = []
 
     # When tex_mode is `true` the app captures reprojected textures in headless mode. When it is false, the app runs
     # in foreground and lets you explore the model.
@@ -334,7 +302,7 @@ def main():
     if tex_mode:
         texture_cv = cv.imread(texture_path)
         texture_height, texture_width = texture_cv.shape[:2]
-        renderer = TextureMappingRenderApp(width=texture_width*2, height=texture_height*2, headless=True)
+        renderer = TextureMappingRenderApp(width=texture_width, height=texture_height, headless=True)
     else:
         renderer = TextureMappingRenderApp(width=720, height=576, headless=False)
 
@@ -352,7 +320,8 @@ def main():
             save_path = base_capture_path.format(name)
         cv.imwrite(save_path, texture_capture)
 
-    for i in range(len(camera_pos)):
+    util.ensure_dir(capture_folder_path)
+    for i in [0, 1]:  # range(len(camera_pos)):
         print('Processing screenshot {}...'.format(i))
 
         renderer.update_projection(camera_image_path=camera_image_path.format(i),
@@ -360,10 +329,6 @@ def main():
                                    camera_hpr=camera_hpr[i])
 
         time.sleep(0.1)
-
-        # Extract camera normal for this screenshot
-        camera_normal = renderer.last_projection_camera_normal
-        camera_normals.append([camera_normal[0], camera_normal[1], camera_normal[2]])
 
         if tex_mode:
             if i == 0:
@@ -378,10 +343,6 @@ def main():
 
     if not tex_mode:
         renderer.run()
-
-    # Save camera normals (they will be used for texture reconstruction)
-    capture_json['camera_normal'] = camera_normals
-    util.save_dict(capture_data_json_path, capture_json)
 
     renderer.shutdown_and_destroy()
 

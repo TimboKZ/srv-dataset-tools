@@ -40,7 +40,6 @@ def pick_frames(video_cap, frame_indices, convert_to_rgb=False):
     for i in range(frame_count):
         video_cap.set(cv.CAP_PROP_POS_FRAMES, frame_indices[i])
         ret, frame = video_cap.read()
-        # TODO: Check ret
         if convert_to_rgb:
             frame = cv.cvtColor(frame, cv.COLOR_BGR2RGB)
         frames[i] = frame
@@ -70,6 +69,7 @@ def load_all_images(folder_path, convert_to_rgb=False):
 
     return images
 
+
 def undistort_line(line, cam_matrix, dist_coeffs, new_cam_matrix):
     cv_points = np.expand_dims(line.T, axis=0).astype(np.float32)
     new_line = cv.undistortPoints(cv_points,
@@ -78,6 +78,4 @@ def undistort_line(line, cam_matrix, dist_coeffs, new_cam_matrix):
                                   P=new_cam_matrix
                                   )[0].T
 
-    # new_line[0, :] = new_line[0, :]
-    # new_line[1, :] = new_line[1, :]
     return new_line

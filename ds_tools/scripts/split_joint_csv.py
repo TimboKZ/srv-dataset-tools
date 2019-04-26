@@ -54,8 +54,7 @@ def extract_individual_hands(input_kinematics_csv, output_dir):
 
 def main():
     data_dir = util.get_data_dir()
-    capture_dir = path.join(data_dir, 'iousfan', 'synced')
-    # capture_dir = path.join(data_dir, 'prostate_surgery')
+    capture_dir = path.join(data_dir, 'placenta_phantom', 'synced')
 
     input_kinematics_csv = path.join(capture_dir, 'DaVinciSiMemory.csv')
     output_dir = capture_dir

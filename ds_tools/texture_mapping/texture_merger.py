@@ -8,7 +8,7 @@ from ds_tools.shared import transform as tf
 from ds_tools.shared import util, cv_util
 
 
-def merge_textures(capture_data_json_path, texture_dir):
+def merge_textures(capture_data_json_path, texture_dir, max_texture_count=99999):
     # Prepare paths
     base_capture_path = path.join(texture_dir, 'base_{}.png')
     texture_capture_path = path.join(texture_dir, '{}_{}.png')
@@ -22,9 +22,7 @@ def merge_textures(capture_data_json_path, texture_dir):
     # Load capture data JSON
     capture_json = util.load_dict(capture_data_json_path)
     all_camera_pos = capture_json['camera_pos']
-    all_camera_hpr = capture_json['camera_hpr']
-    all_camera_normal = capture_json['camera_normal']
-    texture_count = len(all_camera_normal)
+    texture_count = min(max_texture_count, len(all_camera_pos))
 
     # Load all textures
     projections = []
@@ -33,9 +31,6 @@ def merge_textures(capture_data_json_path, texture_dir):
     frustums = []
     light_maps = []
     for i in range(texture_count):
-        if i in [0, 6]:
-            texture_count -= 1
-            continue
         projection = cv.imread(texture_capture_path.format(i, 'projection'))
         projections.append(projection)
 
@@ -171,14 +166,10 @@ def merge_textures(capture_data_json_path, texture_dir):
 
 def main():
     resource_dir = util.get_resource_dir()
-    # json_path = path.join(resource_dir, 'heart_screenshots', 'capture_data.json')
-    # capture_path = path.join(resource_dir, 'heart_texture_capture')
-    # json_path = path.join(resource_dir, 'placenta_phantom_images', 'capture_data.json')
-    # capture_path = path.join(resource_dir, 'placenta_phantom_capture')
-    json_path = path.join(resource_dir, 'iousfan_images', 'capture_data.json')
-    capture_path = path.join(resource_dir, 'iousfan_capture')
+    json_path = path.join(resource_dir, 'placenta_images', 'capture_data.json')
+    capture_path = path.join(resource_dir, 'placenta_texture')
 
-    merge_textures(json_path, capture_path)
+    merge_textures(json_path, capture_path, max_texture_count=2)
 
 
 if __name__ == '__main__':

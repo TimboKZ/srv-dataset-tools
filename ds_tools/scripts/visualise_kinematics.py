@@ -8,6 +8,11 @@ from ds_tools.kinematics.kinematics_render_app import KinematicsRenderApp, LoadF
 from ds_tools.shared import util, cv_util
 
 
+# Press B to record a snapshot of the current frame from both cameras.
+# Press SPACE to start or pause the video.
+# Use the scrollbar to pick a relevant frame.
+
+
 def load_numpy_csv(csv_path):
     return np.loadtxt(csv_path, delimiter=',', dtype=np.float32)
 
@@ -69,6 +74,7 @@ def init_video_viewer(left_video_capture, ecm_renderer, right_video_capture=None
                 elif key == 98:
                     if snapshot_dir is not None:
                         filename = path.join(snapshot_dir, 'frame_{}_{{}}.png'.format(last_loop_frame))
+                        util.ensure_dir(snapshot_dir)
                         if last_left_image is not None:
                             cv.imwrite(filename.format('left'), last_left_image)
                         if last_right_image is not None:
@@ -107,8 +113,8 @@ def init_video_viewer(left_video_capture, ecm_renderer, right_video_capture=None
 def main():
     # Tweak these paths to match your data
     data_dir = util.get_data_dir()
-    capture_dir = path.join(data_dir, 'iousfan', 'synced')
-    snapshot_dir = path.join(data_dir, 'iousfan_snapshots')
+    capture_dir = path.join(data_dir, 'placenta_phantom', 'synced')
+    snapshot_dir = path.join(data_dir, 'placenta_snapshots')
     left_video_path = path.join(capture_dir, 'EndoscopeImageMemory_0.avi')
     right_video_path = path.join(capture_dir, 'EndoscopeImageMemory_1.avi')
     pose_ecm = load_numpy_csv(path.join(capture_dir, 'pose_ecm.csv'))

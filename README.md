@@ -2,7 +2,8 @@
 
 This repo contains the tools for texture reconstruction based on laparoscopic surgery data sets, made for Surgical 
 Vision and Robotics group at UCL. This repository goes together with Timur Kuzhagaliyev's final year project, 
-described in [this report](#) (link coming soon).
+described in [this report](https://drive.google.com/open?id=1QT4nYPPCjCrJqFcet6b-yGSSvJUqmy7Y). If you're planning to
+ use the code from this repository, you are strongly advised to look at sections 3 and 4 of the project report.
 
 
 # Project structure
@@ -22,11 +23,22 @@ calibration code is presented in the form of Jupyter notebooks is to make it eas
 
 # Python packages
 
-This project uses Python 3. You will need the following Python Pip packages to run the code in this project:
+This project uses Python 3.5.2. You will need the following Python Pip packages to run the code in this project:
 ```
-opencv-python
-numpy
-pandas
+opencv-contrib-python==3.4.0.12
+opencv-python==4.0.0.21
+matplotlib==3.0.2
+trimesh==2.36.16
+panda3d==1.10.0
+pandas==0.23.4
+numpy==1.15.4
+pycpd==1.0.5
+scipy==1.2.0
+```
+
+These packages can be installed by running the following command at the root folder of this repository:
+```bash
+pip3 install -r requirements.txt
 ```
 
 # Using custom data
@@ -51,6 +63,10 @@ You are free to adjust the paths and filenames for your convenience. Note that y
 the `data/` folder - you can use your own absolute paths, e.g. `/home/my_user/my_data/pose_ecm.csv`. Keep in mind 
 that the **output** some scripts generate might go into the `data/` folder by default.
 
+**Important:** Example data for placenta phantom texture reconstruction can be downloaded [here](#) (links coming 
+soon). This archive has to be placed inside the `data/` folder and unzipped. The code in this repository has been 
+adjusted to use this data set. You can use it as a reference when preparing your own data set for texture 
+reconstruction.
 
 # Using Jupyter notebooks
 
@@ -131,8 +147,7 @@ Once the script terminates, a folder called `synced/` will be created inside the
 CT scans almost always come as a collection of DICOM images, where each image represents a single slice through the 
 volume of the scanned scene. `.DICOM` files can be viewed using [itk-SNAP](http://www.itksnap.org/pmwiki/pmwiki.php).
  Relevant objects, such as markers on the calibration object or markers on the endoscope collar, can be easily 
- segmented from the CT scan using one of [itk-SNAP's automatic segmentation tools](http://www.itksnap
- .org/docs/viewtutorial.php?chapter=TutorialSectionIntroductionToAutomatic) (snakes evolution tool is recommended). 
+ segmented from the CT scan using one of [itk-SNAP's automatic segmentation tools](http://www.itksnap.org/docs/viewtutorial.php?chapter=TutorialSectionIntroductionToAutomatic) (snakes evolution tool is recommended). 
 
 Note that groups of markers, e.g. all endoscope collar markers, must all be segmented into the same label, and each 
  distinct group should have its own label. The recorded surface, e.g. the walls of the recorded surgical phantom, can
@@ -140,8 +155,80 @@ Note that groups of markers, e.g. all endoscope collar markers, must all be segm
   
 Once segmentation is done, each label should be exported as a separate `.stl` mesh. This can be done using a built-in
  itk-SNAP tool for mesh export.
- 
+
+---
+
 The object of the mesh whose texture will be reconstructed (e.g. surgical phantom) has to go through extra processing
  steps, such as smoothing and UV unwrapping. These steps can be carried out using [Blender](https://www.blender.org/)
  software. The relevant `.stl` can be imported into Blender using the built-in STL plugin (with orientation Z-up 
  Y-forward and same scaling as original model).
+ 
+The number of faces can be reduced using Blender's [decimate modifier](https://docs.blender.org/manual/en/latest/modeling/modifiers/generate/decimate.html), and smoothing can be applied using [Laplacian 
+smooth modifier](https://docs.blender.org/manual/en/latest/modeling/modifiers/generate/decimate.html). After smooth 
+is complete, the mesh needs to be UV unwrapped. This can be done using angle based flattening (ABF) in Blender's smart
+ UV projects (see [unwrapping guide](https://docs.blender.org/manual/en/latest/editors/uv_image/uv/editing/unwrapping/index.html)).
+Some arbitrary texture must then be applied to the object (e.g. a chessboard pattern of size `2048 x 2048` pixels) to
+ give texture reconstruction code some reference for the desired size of the figure.
+ 
+Once the model is UV unwrapped and a texture is applied to it, it needs to be exported as an `.obj` file (since `.stl` 
+doesn't encode UV mappings). This `.obj` file can then be used in texture reconstruction.
+
+
+## Camera calibration
+
+The code for camera calibration is expressed as Jupyter Notebooks found in `notebooks/calibration/`. The main goal of
+ the calibration process is to produce `data/intrinsics.json` and `data/extrinsics.json` files which encode the 
+ intrinsics and extrinsics parameters of the camera respectively. These can later be used to estimate the camera pose
+ in various shot of the object whose texture is reconstructed.
+ 
+All of the notebooks contain some default values which are built around the placenta phantom data set mentioned 
+earlier, so it's a good idea to download it and use as reference.
+
+**Intrinsics calibration**: Intrinsics are calibrated in the `intrinsics_calibration.ipynb` notebook. Calibration is 
+done using footage of a planar chessboard pattern moving in front of the camera. Calibration can be done using a 
+short video or by specifying a path to a folder that contains frames with calibration object visible (such frames can
+ be extracted using video players, e.g. [VLC](https://www.videolan.org/vlc/index.en-GB.htm)). The output is 
+ `data/intrinsics.json`, which records the intrinsic matrix, distortion coefficients and the image size of the camera.
+ 
+If necessary, radial distortion coefficients can be refined by marking straight lines one some video frames 
+using `ds_tools/scripts/mark_points.py` and then using `intrinsics_refining.ipynb`. Once intrinsics of the camera are
+ known, `rectify_images.ipynb` can be used to correct distortion on arbitrary images taken by the camera.
+ 
+**Extrinsics calibration**: Extrinsics calibration is done in two steps. First, we extract the shape of rigid body 
+associated with the endoscope collar using `endoscope_rigidbody_calibration.ipynb`. To do that, we need the segmented
+ endoscope markers from the calibration scene and the segmented endoscope markers from the actual data capture scene 
+ (both extracted from different CT scans). Only the first set of markers is used to extract the shape of the rigid 
+ body, the second set is just used to verify how accurate the segmentation is. This notebook creates the file 
+ `data/extrinsics.json`.
+ 
+The second step involves working out the extrinsics of the camera with respect to the rigid body defined in the 
+previous step. This is done in `endoscope_camera_calibration.ipynb`. It requires meshes of endoscope markers (mesh 1)
+and the mesh of markers of the calibration object (mesh 2), segmented from the CT scan of the calibration scene. It 
+also requires an image from the endoscope cameras, taken at the time when CT scan was taken. All calibration markers
+must be visible in the image. This process works out the transformation between the camera and the reference rigid 
+body, and saves the result into `data/extrinsics.json`.
+
+**3D render test**: To make sure that extrinsics and intrinsics are calibrated correctly, `3d_render_test.ipynb` is used
+to generate a synthetic render of the scene with the phantom. It loads the JSON files generated in the previous 
+steps, as well as the 3D mesh of the recorded object. The results for the placenta data set can be seen below.
+
+This notebook also outputs the `data/phantom_scene.json` file, which contains information about the final camera 
+parameters calculated explicitly for this scene. These parameters are automatically imported when you run 
+the `ds_tools/calibration/render.py` script. The script lets you move the camera around to estimate camera poses for 
+other frames from the endoscope video footage.
+
+| ![](figures/3d_render_test_synthetic.png) | ![](figures/3d_render_test_real.png) |
+|-------------------------------------------|--------------------------------------|
+
+## Projective texture mapping
+
+To prepare the data for texture reconstruction, one should extract several frames that best cover the surface of 
+interest from the endoscope footage, and estimate the camera pose using the method described above. Script 
+`ds_tools/scripts/visualise_kinematics.py` provides a convenient way to preview videos from stereo cameras, allowing 
+the user to take snapshots of the current frame from both cameras. Before it can be used, the file 
+containing da Vinci kinematics, `DaVinciSiMemory.csv`, must be broken doing into individual CSV files (covering each 
+manipulator), which can be done by running `ds_tools/scripts/split_join_csv.py`.
+ 
+Once this data is available, images need to be renamed into the format `<index>_screenshot.png`, and camera 
+parameters need to be stored in `capture_data.json` in the same order as the images. See 
+`resources/placenta_images/` for reference.
