@@ -107,8 +107,8 @@ def init_video_viewer(left_video_capture, ecm_renderer, right_video_capture=None
 def main():
     # Tweak these paths to match your data
     data_dir = util.get_data_dir()
-    capture_dir = path.join(data_dir, 'placenta_phantom_capture', 'synced')
-    snapshot_dir = path.join(data_dir, 'placenta_phantom_snapshots')
+    capture_dir = path.join(data_dir, 'iousfan', 'synced')
+    snapshot_dir = path.join(data_dir, 'iousfan_snapshots')
     left_video_path = path.join(capture_dir, 'EndoscopeImageMemory_0.avi')
     right_video_path = path.join(capture_dir, 'EndoscopeImageMemory_1.avi')
     pose_ecm = load_numpy_csv(path.join(capture_dir, 'pose_ecm.csv'))

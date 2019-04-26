@@ -1,4 +1,3 @@
-from joblib import Parallel, delayed
 from itertools import combinations
 from os import path
 import numpy as np
@@ -102,11 +101,12 @@ def measure_alignment_error(projection_path_template, confidence_path_template, 
 
 
 def main():
-    capture_path = path.join(util.get_resource_dir(), 'heart_texture_capture')
+    # capture_path = path.join(util.get_resource_dir(), 'heart_texture_capture')
+    capture_path = path.join(util.get_resource_dir(), 'iousfan_capture')
     projection_path_template = path.join(capture_path, '{}_projection.png')
     confidence_path_template = path.join(capture_path, '{}_confidence.png')
     output_path_template = path.join(capture_path, '{}_edges.png')
-    total_images = 10
+    total_images = 5
 
     start = time.time()
     measure_alignment_error(projection_path_template, confidence_path_template, output_path_template, total_images)

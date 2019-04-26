@@ -19,13 +19,7 @@ class RenderApp(BaseRenderApp):
     def __init__(self, width, height, headless=False):
         BaseRenderApp.__init__(self, title='Calibration render', width=width, height=height, headless=headless)
 
-        # self.hpr_adjustment = LVecBase3f(39, 127, 20)
-        # self.pos_adjustment = LVecBase3f(-1, -2, 0.5)
-        # self.hpr_adjustment = LVecBase3f(25.5, 131.5, 20.5)
-        # self.pos_adjustment = LVecBase3f(10.5, -2, 10)
-        # self.hpr_adjustment = LVecBase3f(32.25, 131.25, 18)
-        # self.pos_adjustment = LVecBase3f(2.75, 3, 7.75)
-        self.hpr_adjustment = LVecBase3f(0, 0, -90)
+        self.hpr_adjustment = LVecBase3f(0, 0, 29)
         self.pos_adjustment = LVecBase3f(0)
 
         self.onscreen_image = None
@@ -78,8 +72,22 @@ class RenderApp(BaseRenderApp):
         cube.setScale(0.15)
         cube.setPos(*cam)
 
-        for i in range(50):
-            z = i * 1
+        # Set camera pose - not that we need to add 90 to pitch for the camera to be aligned correctly.
+        euler_degrees = np.rad2deg(tf.rot_matrix_to_euler(R.T))
+        fixed_euler_degrees = [self.hpr_adjustment[0], self.hpr_adjustment[1], self.hpr_adjustment[2]] + euler_degrees
+        fixed_pos = [self.pos_adjustment[0], self.pos_adjustment[1], self.pos_adjustment[2]] + t
+
+        self.proj_buffer = self.win.makeTextureBuffer('Projection Render', 800, 600)
+        self.proj_buffer.setSort(100)
+        self.proj_buffer.setSize(self.width, self.height)
+        projection_camera_np = self.makeCamera(self.proj_buffer)
+        projection_camera_np.reparentTo(render)
+        projection_camera_np.setPos(*fixed_euler_degrees)
+        projection_camera_np.setHpr(*fixed_pos)
+        projection_camera = projection_camera_np.node()
+
+        for i in range(100):
+            z = i * 0.8
             img_corners = np.array([
                 [0, self.width, self.width, 0],
                 [0, 0, self.height, self.height]
@@ -93,48 +101,60 @@ class RenderApp(BaseRenderApp):
             cam_corners[1, :] /= fy
             cam_corners = np.vstack([cam_corners, np.repeat(z, 4)])
             world_corners = tf.apply_transform(cam_corners, T)
-            print(np.mean(world_corners, axis=1) / 4.0)
             for j in range(4):
                 cube = self.loader.loadModel('models/box')
                 cube.reparent_to(self.render)
                 pos = world_corners[:, j]
                 cube.setColor(1, 0, 0, 1)
-                cube.setScale(0.05)
+                cube.setScale(0.2)
                 cube.setPos(*pos)
+
+            if i == 99:
+                cube = self.loader.loadModel('models/box')
+                cube.reparent_to(self.render)
+                pos = np.mean(world_corners, axis=1)
+                cube.setColor(1, 0, 0, 1)
+                cube.setScale(0.5)
+                cube.setPos(*pos)
+                print(projection_camera_np.getHpr())
+                projection_camera_np.lookAt(cube)
+                print(projection_camera_np.getHpr())
+                print('Done!')
 
         self.toggleTexture()
 
-        # Set camera pose - not that we need to add 90 to pitch for the camera to be aligned correctly.
-        euler_degrees = np.rad2deg(tf.rot_matrix_to_euler(R))
-        fixed_euler_degrees = [self.hpr_adjustment[0], self.hpr_adjustment[1], self.hpr_adjustment[2]] + euler_degrees
-        fixed_pos = [self.pos_adjustment[0], self.pos_adjustment[1], self.pos_adjustment[2]] + t
+        # fixed_euler_degrees2 = [8.913040161132812, -33.89190673828125, 180.6726837158203]
+        # fixed_pos2 = [-230.322509765625, -354.506591796875, 17.480010986328125]
 
-        # fixed_euler_degrees = [150.69981384277344, 32.22336959838867, -26.061622619628906]
-        # fixed_pos = [-215.63949584960938, -184.4008331298828, -120.99508666992188]
+        # cube1 = self.loader.loadModel('models/box')
+        # cube2 = self.loader.loadModel('models/box')
+        # cube1.reparentTo(self.main_camera_parent)
+        # cube2.reparentTo(self.main_camera_parent)
+        # cube1.setScale(0.05)
+        # cube2.setScale(0.05)
+        # cube1.setColor(1, 0, 0)
+        # cube2.setColor(0, 1, 0)
+        # cube1.setPos(0, 0, 0)
+        # cube2.setPos(0, 1, 0)
+        # self.main_camera_parent.setHpr(*fixed_euler_degrees)
+        # self.main_camera_parent.setPos(*fixed_pos)
+        # self.main_camera_parent.lookAt(cube)
 
-        cube1 = self.loader.loadModel('models/box')
-        cube2 = self.loader.loadModel('models/box')
-        cube1.reparentTo(self.main_camera_parent)
-        cube2.reparentTo(self.main_camera_parent)
-
-        cube1.setScale(0.05)
-        cube2.setScale(0.05)
-        cube1.setColor(1, 0, 0)
-        cube2.setColor(0, 1, 0)
-
-        cube1.setPos(0, 0, 0)
-        cube2.setPos(0, 1, 0)
-
-        self.disableMouse()
-        self.main_camera_parent.setHpr(*fixed_euler_degrees)
-        self.main_camera_parent.setPos(*cam)
-        self.main_camera_np.setHpr(0, 0, 0)
-        self.main_camera_np.setPos(0, 0, 0)
-
-        pos1 = cube1.getNetTransform().getPos()
-        pos2 = cube2.getNetTransform().getPos()
-        normal = (pos2 - pos1).normalized()
-        print(normal)
+        projection_lens = projection_camera.getLens()
+        projection_lens.setNear(0.01)
+        projection_lens.setFocalLength(1)
+        proj = render.attachNewNode(LensNode('proj'))
+        proj.node().setLens(projection_lens)
+        proj.node().showFrustum()
+        proj.find('frustum').setColor(1, 0, 0, 1)
+        camModel = self.loader.loadModel('camera.egg')
+        camModel.reparentTo(proj)
+        camModel.setScale(1)
+        proj.reparentTo(render)
+        proj.setPos(*fixed_pos)
+        proj.setHpr(*fixed_euler_degrees)
+        proj.lookAt(cube)
+        # self.main_camera_parent = proj
 
         # Set camera focal length
         # f_x, f_y = cam_matrix[0, 0], cam_matrix[1, 1]
@@ -151,7 +171,16 @@ class RenderApp(BaseRenderApp):
 
         print('FOV:', self.main_lens.getFov())
 
-        magnitude = 0.5
+        self.disableMouse()
+        self.main_camera_np.setHpr(0, 0, 0)
+        self.main_camera_np.setPos(0, 0, 0)
+
+        fixed_euler_degrees2 = [180.89413452148438, 26.12636947631836, 38.0]
+        fixed_pos2 = [-225.4609375, -67.58976745605469, -93.96539306640625]
+        self.main_camera_parent.setHpr(*fixed_euler_degrees2)
+        self.main_camera_parent.setPos(*fixed_pos2)
+
+        magnitude = 3
         self.accept('u', self.adjust_camera_hpr, [LVecBase3f(+magnitude, 0, 0)])
         self.accept('i', self.adjust_camera_hpr, [LVecBase3f(-magnitude, 0, 0)])
         self.accept('j', self.adjust_camera_hpr, [LVecBase3f(0, +magnitude, 0)])
@@ -159,7 +188,7 @@ class RenderApp(BaseRenderApp):
         self.accept('n', self.adjust_camera_hpr, [LVecBase3f(0, 0, +magnitude)])
         self.accept('m', self.adjust_camera_hpr, [LVecBase3f(0, 0, -magnitude)])
 
-        magnitude = 0.5
+        magnitude = 3
         self.accept('a', self.adjust_camera_pos, [LVecBase3f(+magnitude, 0, 0)])
         self.accept('d', self.adjust_camera_pos, [LVecBase3f(-magnitude, 0, 0)])
         self.accept('q', self.adjust_camera_pos, [LVecBase3f(0, +magnitude, 0)])
@@ -247,15 +276,15 @@ def main():
     # This function is here for testing purposes
     width, height = 720, 576
     data_dir = util.get_data_dir()
-    capture_dir = path.join(data_dir, 'placenta_phantom_calib')
-    phantom_model_path = path.join(capture_dir, 'calib_markers.stl')
+    capture_dir = path.join(data_dir, 'iousfan_capture')
+    phantom_model_path = path.join(capture_dir, 'phantom_mesh.stl')
     endoscope_markers_path = path.join(capture_dir, 'endo_markers.stl')
+    onscreen_image_path = path.join(capture_dir, 'frame_86220_left.png')
     T_cam_to_world = np.array([
-        [-9.78468121e-01, 8.60633698e-02, - 1.87598594e-01, - 2.30322506e+02],
-        [7.40405698e-02, - 7.02060977e-01, - 7.08257283e-01, - 2.04506575e+02],
-        [-1.92660661e-01, - 7.06897080e-01, 6.80572104e-01, - 1.07519998e+02],
-        [0.00000000e+00, 0.00000000e+00, 0.00000000e+00, 1.00000000e+00]
-    ])
+        [-4.49623102e-01, -8.13808336e-01, -3.68178025e-01, -1.94460920e+02],
+        [7.42930413e-01, -1.11893046e-01, -6.59950261e-01, -6.75897658e+01],
+        [4.95876464e-01, -5.70259536e-01, 6.54912662e-01, -9.09653988e+01],
+        [0.00000000e+00, 0.00000000e+00, 0.00000000e+00, 1.00000000e+00]])
 
     R, t = tf.from_transform(T_cam_to_world)
     cam_matrix = np.array([
@@ -263,17 +292,6 @@ def main():
         [0., 842.88543701, 276.08463295],
         [0., 0., 1.],
     ])
-
-    a = np.array([0.70689599, 0.68057399, 0.192658])
-    b = np.array([-0.15580644, -0.72006735, 0.6761859])
-    v = np.cross(a, b)
-    c = np.dot(a, b)
-    s = np.linalg.norm(v)
-    I = np.identity(3)
-    vXStr = '{} {} {}; {} {} {}; {} {} {}'.format(0, -v[2], v[1], v[2], 0, -v[0], -v[1], v[0], 0)
-    k = np.matrix(vXStr)
-    r = I + k + k @ k * ((1 - c) / (s ** 2))
-    R = R @ np.linalg.pinv(r)
 
     test_headless = False
     if test_headless:
@@ -286,9 +304,7 @@ def main():
         app = RenderApp(width=width, height=height)
         app.init_scene(R=R, t=t, cam_matrix=cam_matrix, phantom_model_path=phantom_model_path,
                        endoscope_markers_path=endoscope_markers_path,
-                       onscreen_image_path=path.join(capture_dir, 'scan_5_rectified_markers.png'))
-        # onscreen_image_path=path.join(util.get_resource_dir(), 'placenta_phantom_images',
-        #                               '5_screenshot.png'))
+                       onscreen_image_path=onscreen_image_path)
         app.run()
 
 

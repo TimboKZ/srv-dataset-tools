@@ -2,6 +2,7 @@ from panda3d.core import *
 from os import path
 import numpy as np
 import cv2 as cv
+import time
 
 # Our local modules
 from ds_tools.shared.base_render_app import BaseRenderApp
@@ -263,6 +264,9 @@ class TextureMappingRenderApp(BaseRenderApp):
         else:
             self.setBackgroundColor(*self.default_bg)
 
+        self.graphicsEngine.render_frame()
+        self.graphicsEngine.render_frame()
+
         # Capture the screenshot
         texture_capture = self.capture_screenshot(source=self.tex_buffer)
 
@@ -286,14 +290,23 @@ def main():
     data_dir = util.get_data_dir()
     resource_dir = util.get_resource_dir()
 
-    model_path = path.join(data_dir, 'placenta_phantom_capture', 'placenta_mesh.obj')
-    texture_path = path.join(data_dir, 'placenta_phantom_capture', 'texture.png')
+    model_path = path.join(resource_dir, '3d_assets', 'iousfan.obj')
+    texture_path = path.join(resource_dir, '3d_assets', 'iousfan.png')
     normal_map_path = None
-    camera_image_path = path.join(resource_dir, 'placenta_phantom_images', '{}_screenshot.png')
-    capture_data_json_path = path.join(resource_dir, 'placenta_phantom_images', 'capture_data.json')
-    capture_folder_name = 'placenta_phantom_capture'
+    camera_image_path = path.join(resource_dir, 'iousfan_images', '{}_screenshot.png')
+    capture_data_json_path = path.join(resource_dir, 'iousfan_images', 'capture_data.json')
+    capture_folder_name = 'iousfan_capture'
     base_capture_path = path.join(resource_dir, capture_folder_name, 'base_{}.png')
     texture_capture_path = path.join(resource_dir, capture_folder_name, '{}_{}.png')
+
+    # model_path = path.join(data_dir, 'placenta_phantom_capture', 'placenta_mesh.obj')
+    # texture_path = path.join(data_dir, 'placenta_phantom_capture', 'texture.png')
+    # normal_map_path = None
+    # camera_image_path = path.join(resource_dir, 'placenta_phantom_images', '{}_screenshot.png')
+    # capture_data_json_path = path.join(resource_dir, 'placenta_phantom_images', 'capture_data.json')
+    # capture_folder_name = 'placenta_phantom_capture'
+    # base_capture_path = path.join(resource_dir, capture_folder_name, 'base_{}.png')
+    # texture_capture_path = path.join(resource_dir, capture_folder_name, '{}_{}.png')
 
     # model_path = path.join(resource_dir, '3d_assets', 'heart.egg')
     # model_path = path.join(resource_dir, '3d_assets', 'heart.obj')
@@ -321,7 +334,7 @@ def main():
     if tex_mode:
         texture_cv = cv.imread(texture_path)
         texture_height, texture_width = texture_cv.shape[:2]
-        renderer = TextureMappingRenderApp(width=texture_width, height=texture_height, headless=True)
+        renderer = TextureMappingRenderApp(width=texture_width*2, height=texture_height*2, headless=True)
     else:
         renderer = TextureMappingRenderApp(width=720, height=576, headless=False)
 
@@ -339,12 +352,14 @@ def main():
             save_path = base_capture_path.format(name)
         cv.imwrite(save_path, texture_capture)
 
-    for i in [1]:  # range(len(camera_pos)):
+    for i in range(len(camera_pos)):
         print('Processing screenshot {}...'.format(i))
 
         renderer.update_projection(camera_image_path=camera_image_path.format(i),
                                    camera_pos=camera_pos[i],
                                    camera_hpr=camera_hpr[i])
+
+        time.sleep(0.1)
 
         # Extract camera normal for this screenshot
         camera_normal = renderer.last_projection_camera_normal

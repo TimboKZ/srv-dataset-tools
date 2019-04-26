@@ -3,6 +3,7 @@ from panda3d.core import *
 from os import path
 import numpy as np
 import cv2 as cv
+import time
 
 # Our local modules
 from ds_tools.shared.base_render_app import BaseRenderApp
@@ -309,8 +310,12 @@ class TextureMappingRenderApp(BaseRenderApp):
 
 
 def compute_alignment_error_between(proj_A, mask_A, proj_B, mask_B):
-    h, w = proj_A.shape
+    h, w = proj_A.shape[:2]
     mask = np.logical_and(mask_A, mask_B)
+
+    rgb = False
+    if len(proj_A.shape) == 3:
+        rgb = True
 
     e = 0
     n = 0
@@ -319,7 +324,9 @@ def compute_alignment_error_between(proj_A, mask_A, proj_B, mask_B):
             if not mask[y, x]:
                 continue
 
-            diff = np.abs(float(proj_A[y, x]) - float(proj_B[y, x]))
+            diff = np.abs(proj_A[y, x] - proj_B[y, x])
+            if rgb:
+                diff = np.sum(diff)
             e += diff
             n += 1
     return e, n
@@ -329,14 +336,23 @@ def main():
     data_dir = util.get_data_dir()
     resource_dir = util.get_resource_dir()
 
-    model_path = path.join(data_dir, 'placenta_phantom_capture', 'placenta_mesh.obj')
-    texture_path = path.join(data_dir, 'placenta_phantom_capture', 'texture.png')
+    model_path = path.join(resource_dir, '3d_assets', 'iousfan.obj')
+    texture_path = path.join(resource_dir, '3d_assets', 'iousfan.png')
     normal_map_path = None
-    camera_image_path = path.join(resource_dir, 'placenta_phantom_images', '{}_screenshot.png')
-    capture_data_json_path = path.join(resource_dir, 'placenta_phantom_images', 'capture_data.json')
-    capture_folder_name = 'placenta_phantom_capture'
+    camera_image_path = path.join(resource_dir, 'iousfan_images', '{}_screenshot.png')
+    capture_data_json_path = path.join(resource_dir, 'iousfan_images', 'capture_data.json')
+    capture_folder_name = 'iousfan_capture'
     base_capture_path = path.join(resource_dir, capture_folder_name, 'base_{}.png')
     texture_capture_path = path.join(resource_dir, capture_folder_name, '{}_{}.png')
+
+    # model_path = path.join(data_dir, 'placenta_phantom_capture', 'placenta_mesh.obj')
+    # texture_path = path.join(data_dir, 'placenta_phantom_capture', 'texture.png')
+    # normal_map_path = None
+    # camera_image_path = path.join(resource_dir, 'placenta_phantom_images', '{}_screenshot.png')
+    # capture_data_json_path = path.join(resource_dir, 'placenta_phantom_images', 'capture_data.json')
+    # capture_folder_name = 'placenta_phantom_capture'
+    # base_capture_path = path.join(resource_dir, capture_folder_name, 'base_{}.png')
+    # texture_capture_path = path.join(resource_dir, capture_folder_name, '{}_{}.png')
 
     # model_path = path.join(resource_dir, '3d_assets', 'heart.egg')
     # model_path = path.join(resource_dir, '3d_assets', 'heart.obj')
@@ -354,7 +370,7 @@ def main():
     camera_focal_length = capture_json.get('camera_focal_length')
     camera_pos = capture_json['camera_pos']
     camera_hpr = capture_json['camera_hpr']
-    camera_normals = []
+    # camera_normals = []
 
     # When tex_mode is `true` the app captures reprojected textures in headless mode. When it is false, the app runs
     # in foreground and lets you explore the model.
@@ -368,18 +384,11 @@ def main():
                         camera_film_size=camera_film_size,
                         camera_focal_length=camera_focal_length)
 
-    def capture_texture(texture_type, name, index=None):
-        texture_capture = renderer.capture_shader_texture(texture_type)
-        if index is not None:
-            save_path = texture_capture_path.format(index, name)
-        else:
-            save_path = base_capture_path.format(name)
-        cv.imwrite(save_path, texture_capture)
-
-    base_image_index = 0
-    base_projection = cv.imread(texture_capture_path.format(base_image_index, 'projection'), cv.IMREAD_GRAYSCALE)
-    base_projection = cv.Laplacian(base_projection, cv.CV_8UC1)
-    base_projection = cv.blur(base_projection, (3, 3))
+    base_image_index = 3
+    base_projection = cv.imread(texture_capture_path.format(base_image_index, 'projection'))
+    # base_projection = cv.imread(texture_capture_path.format(base_image_index, 'projection'), cv.IMREAD_GRAYSCALE)
+    # base_projection = cv.Laplacian(base_projection, cv.CV_8UC1)
+    # base_projection = cv.blur(base_projection, (3, 3))
     base_mask = (cv.imread(texture_capture_path.format(base_image_index, 'confidence'), cv.IMREAD_GRAYSCALE) > 5)
 
     new_image_index = 1
@@ -392,29 +401,57 @@ def main():
                                camera_pos=cam_pos,
                                camera_hpr=cam_hpr)
 
+    first_n = None
+    min_loss = 999999
+
     def loss(params, log=True):
+        nonlocal first_n
+        nonlocal min_loss
+
         renderer.update_camera_pose(params[:3], params[3:])
         new_projection = renderer.capture_shader_texture(renderer.ShaderTextureMode_Projection)
-        new_projection = cv.cvtColor(new_projection, cv.COLOR_RGB2GRAY)
-        new_projection = cv.Laplacian(new_projection, cv.CV_8UC1)
-        new_projection = cv.blur(new_projection, (3, 3))
+        # new_projection = cv.cvtColor(new_projection, cv.COLOR_RGB2GRAY)
+        # new_projection = cv.Laplacian(new_projection, cv.CV_8UC1)
+        # new_projection = cv.blur(new_projection, (3, 3))
         new_mask = (renderer.capture_shader_texture(renderer.ShaderTextureMode_Visibility)[:, :, 0] > 10)
 
-        e, n = compute_alignment_error_between(base_projection, base_mask, new_projection, new_mask)
-        loss_val = e / n + 329745 / n
+        e, n = compute_alignment_error_between(base_projection.astype(float), base_mask,
+                                               new_projection.astype(float), new_mask)
+
+        loss_val = e / n
+        if first_n is not None:
+            ratio = first_n / n
+            if ratio < 0.9:
+                loss_val = 9999
+        else:
+            first_n = n
+
         if log:
             print('Loss:', np.round(loss_val, 3))
+            if loss_val < min_loss:
+                min_loss = loss_val
+                print('Min args:', params)
         return loss_val
 
     init_params = cam_pos + cam_hpr
+    loss(init_params, False)
 
-    new_params = opt.fmin_cg(loss, init_params, epsilon=0.5, gtol=0.1, disp=True)
+    start = time.time()
+    new_params = opt.fmin_l_bfgs_b(loss, init_params, approx_grad=True, epsilon=0.3, pgtol=1, maxiter=50,
+                                   maxfun=100)[0]
+    end = time.time()
+    duration = end - start
 
     print('Initial loss:', np.round(loss(init_params, False), 6))
     print('Final loss:', np.round(loss(new_params, False), 6))
+    print('Time taken: {}s'.format(np.round(duration, 2)))
     print('')
-    print('New pos:', new_params[:3])
-    print('New hpr:', new_params[3:])
+    new_pos = new_params[:3]
+    new_hpr = new_params[3:]
+    camera_pos[new_image_index] = new_pos.tolist()
+    camera_hpr[new_image_index] = new_hpr.tolist()
+    print('New pos:', new_pos)
+    print('New hpr:', new_hpr)
 
     # capture_texture(renderer.ShaderTextureMode_Projection, 'projection', i)
     # capture_texture(renderer.ShaderTextureMode_Visibility, 'visibility', i)
@@ -423,7 +460,7 @@ def main():
 
     # Save camera normals (they will be used for texture reconstruction)
     # capture_json['camera_normal'] = camera_normals
-    # util.save_dict(capture_data_json_path, capture_json)
+    util.save_dict(capture_data_json_path, capture_json)
 
     renderer.shutdown_and_destroy()
 

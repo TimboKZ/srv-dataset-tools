@@ -33,6 +33,9 @@ def merge_textures(capture_data_json_path, texture_dir):
     frustums = []
     light_maps = []
     for i in range(texture_count):
+        if i in [0, 6]:
+            texture_count -= 1
+            continue
         projection = cv.imread(texture_capture_path.format(i, 'projection'))
         projections.append(projection)
 
@@ -82,6 +85,7 @@ def merge_textures(capture_data_json_path, texture_dir):
     # Compute confidence scores for all pixels
     confidences = np.zeros((texture_count, height, width))
     for i in range(texture_count):
+        print('Processing {}...'.format(i))
         local_mask = np.logical_and(texture_mask, visibility_maps[i])
         projection_yuv = projections_yuv[i]
         frustum = frustums[i]
@@ -121,7 +125,7 @@ def merge_textures(capture_data_json_path, texture_dir):
                 if luma_Y > intensity_threshold:
                     intensity_diff = luma_Y - intensity_threshold
                     intensity_score = 1.0 - intensity_diff / intensity_range
-                    confidence *= intensity_score ** 4
+                    confidence *= intensity_score ** 3
 
                 # Decay confidence next to borders
                 border_buffer = 0.7
@@ -169,8 +173,10 @@ def main():
     resource_dir = util.get_resource_dir()
     # json_path = path.join(resource_dir, 'heart_screenshots', 'capture_data.json')
     # capture_path = path.join(resource_dir, 'heart_texture_capture')
-    json_path = path.join(resource_dir, 'placenta_phantom_images', 'capture_data.json')
-    capture_path = path.join(resource_dir, 'placenta_phantom_capture')
+    # json_path = path.join(resource_dir, 'placenta_phantom_images', 'capture_data.json')
+    # capture_path = path.join(resource_dir, 'placenta_phantom_capture')
+    json_path = path.join(resource_dir, 'iousfan_images', 'capture_data.json')
+    capture_path = path.join(resource_dir, 'iousfan_capture')
 
     merge_textures(json_path, capture_path)
 

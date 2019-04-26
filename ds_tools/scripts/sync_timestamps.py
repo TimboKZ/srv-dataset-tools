@@ -9,7 +9,7 @@ from ds_tools.shared import util, cv_util
 
 def main():
     data_dir = util.get_data_dir()
-    capture_dir = path.join(data_dir, 'placenta_phantom_capture')
+    capture_dir = path.join(data_dir, 'iousfan')
     video_0_path = path.join(capture_dir, 'EndoscopeImageMemory_0.avi')
     video_1_path = path.join(capture_dir, 'EndoscopeImageMemory_1.avi')
     video_csv_0_path = path.join(capture_dir, 'EndoscopeImageMemory_0.csv')

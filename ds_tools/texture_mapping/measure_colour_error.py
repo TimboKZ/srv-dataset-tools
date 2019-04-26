@@ -37,7 +37,7 @@ def measure_error(true_texture_path, reconst_texture_path, mask_path, output_pat
 def main():
     capture_path = path.join(util.get_resource_dir(), 'heart_texture_capture')
     true_texture_path = path.join(capture_path, 'base_texture.png')
-    reconst_texture_path = path.join(capture_path, 'base_final.png')
+    reconst_texture_path = path.join(capture_path, 'base_no_luma.png')
     mask_path = path.join(capture_path, 'base_confidence.png')
 
     output_path = path.join(capture_path, 'base_difference.png')
