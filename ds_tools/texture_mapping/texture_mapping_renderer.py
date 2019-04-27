@@ -6,7 +6,6 @@ import time
 
 # Our local modules
 from ds_tools.shared.base_render_app import BaseRenderApp
-from ds_tools.shared import transform as tf
 from ds_tools.shared import util
 
 
@@ -231,10 +230,6 @@ class TextureMappingRenderApp(BaseRenderApp):
     def update_shader_state(self, task=None):
         self.model.setShaderInput('ShaderViewMode', self.shader_view_mode)
         self.model.setShaderInput('ShaderTextureMode', self.shader_texture_mode)
-
-        # print('')
-        # print(self.camera.getPos())
-        # print(self.camera.getHpr())
 
         if task is not None:
             return task.cont
