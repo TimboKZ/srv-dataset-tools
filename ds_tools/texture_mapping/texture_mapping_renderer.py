@@ -161,7 +161,7 @@ class TextureMappingRenderApp(BaseRenderApp):
         projection_camera_np.setHpr(*camera_hpr)
 
         # Move actual render camera to the same position
-        self.disableMouse()
+        # self.disableMouse()
         self.main_camera_np.setPos(*camera_pos)
         self.main_camera_np.setHpr(*camera_hpr)
 
@@ -321,7 +321,7 @@ def main():
         cv.imwrite(save_path, texture_capture)
 
     util.ensure_dir(capture_folder_path)
-    for i in [0, 1]:  # range(len(camera_pos)):
+    for i in range(len(camera_pos)):
         print('Processing screenshot {}...'.format(i))
 
         renderer.update_projection(camera_image_path=camera_image_path.format(i),

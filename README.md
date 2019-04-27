@@ -20,6 +20,8 @@ calibration code is presented in the form of Jupyter notebooks is to make it eas
  debug the calibration process. Notes on how to use the notebooks can be found below.
 * `data/`: The folder meant to hold data used for texture reconstruction. Since this usually includes large video and
  CSV files, the contents of this folder are ignored via `.gitignore`. 
+* `resources/`: This folder contains various 3D assets and example output of projective texture mapping/texture 
+reconstruction algorithms.
 
 # Python packages
 
@@ -63,8 +65,7 @@ You are free to adjust the paths and filenames for your convenience. Note that y
 the `data/` folder - you can use your own absolute paths, e.g. `/home/my_user/my_data/pose_ecm.csv`. Keep in mind 
 that the **output** some scripts generate might go into the `data/` folder by default.
 
-**Important:** Example data for placenta phantom texture reconstruction can be downloaded [here](#) (links coming 
-soon). This archive has to be placed inside the `data/` folder and unzipped. The code in this repository has been 
+**Important:** Example data for placenta phantom texture reconstruction can be downloaded [here](https://drive.google.com/open?id=1t78ZC9vEUOBj5gDyg9efxpATznlVgkvD). This archive has to be placed inside the `data/` folder and unzipped. The code in this repository has been 
 adjusted to use this data set. You can use it as a reference when preparing your own data set for texture 
 reconstruction.
 
@@ -231,4 +232,24 @@ manipulator), which can be done by running `ds_tools/scripts/split_join_csv.py`.
  
 Once this data is available, images need to be renamed into the format `<index>_screenshot.png`, and camera 
 parameters need to be stored in `capture_data.json` in the same order as the images. See 
-`resources/placenta_images/` for reference.
+`resources/placenta_images/` for reference. The alignment of images can be improved using 
+`ds_tools/texture_mapping/camera_pose_refinement.py`, given that overlapping image projections have enough distinct 
+edges.
+
+**Converting data to UV space**: Once all of the images have correct names and `capture_data.json` is populated with 
+camera poses, all of te data needs to be converted into UV space. This is done by running the 
+`ds_tools/texture_mapping/texture_mapping_renderer.py` script. It initialises the 3D renderer, loads relevant meshes 
+and images, and generates projections of every image using projective texture mapping. Example output of this script 
+can be seen in the `resources/placenta_texture/` folder.
+
+## Texture reconstruction
+
+After all of the data is converted into UV space, the texture can be reconstructed by running the 
+`ds_tools/texture_mapping/texture_merger.py` script. It generates confidence maps for every image projection, and 
+then merges projection based on normalised confidence scores. Example output of this process can be seen on 
+`resources/placenta_texture/base_final.png`.
+
+For the example data, the texture was reconstructed using the mesh `resources/3d_assets/placenta.obj`. To view the 
+final texture in 3D, this mesh can be imported into Blender, with its texture can be set to  
+`resources/placenta_texture/base_final.png`, obtaining a result similar to:
+![](figures/texture_reconstruction.png)

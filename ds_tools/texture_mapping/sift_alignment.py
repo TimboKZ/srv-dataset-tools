@@ -76,10 +76,16 @@ def main():
     for src_ind, dest_ind in pairs:
         src_img = images[src_ind]
         dest_img = images[dest_ind]
+
+        src_pos = all_camera_pos[src_ind]
+        dest_pos = all_camera_pos[dest_ind]
+
         src_points, dest_points = find_sift_correspondence(src_img, dest_img, visualize=True)
-        E, mask = cv.findEssentialMat(src_points, dest_points, cam_matrix)
+        E, mask = cv.findEssentialMat(src_points, dest_points, cam_matrix, cv.RANSAC)
         R1, R2, t = cv.decomposeEssentialMat(E)
-        print(R1)
+
+        print(dest_pos - src_pos)
+        print(-t.flatten())
 
 
 if __name__ == '__main__':

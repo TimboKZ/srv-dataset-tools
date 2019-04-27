@@ -151,8 +151,15 @@ def merge_textures(capture_data_json_path, texture_dir, max_texture_count=99999)
     for i in range(texture_count):
         combined_image += projections[i] * cv_util.expand_2d_to_3d(confidences[i], 3)
 
+    # Inpaint pixels around the texture to avoid white edges during Blender texture preview
+    eroded_mask = base_texture_mask_img.copy()
+    eroded_mask = cv.dilate(eroded_mask, np.ones((5, 5), np.uint8))
+    inpaint_mask = eroded_mask * base_texture_mask_inv_img
+
     # Write final image
     final_image = combined_image + cv_util.expand_2d_to_3d(base_texture_mask_inv_img, 3)
+    final_image = cv.inpaint(final_image.astype(np.uint8), inpaint_mask, 3, cv.INPAINT_TELEA)
+
     cv.imwrite(base_capture_path.format('final'), final_image)
 
     # Write combined visibility
@@ -169,7 +176,7 @@ def main():
     json_path = path.join(resource_dir, 'placenta_images', 'capture_data.json')
     capture_path = path.join(resource_dir, 'placenta_texture')
 
-    merge_textures(json_path, capture_path, max_texture_count=2)
+    merge_textures(json_path, capture_path)
 
 
 if __name__ == '__main__':
