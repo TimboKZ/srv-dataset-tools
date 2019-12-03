@@ -14,7 +14,8 @@ The purpose of each directory is described below:
 self-contained Python package, meaning that code inside it uses package-absolute imports, e.g. 
 `from ds_tools.shared import util`.
 * `matlab_issi/`: Matlab code used to process data from the da Vinci surgical robot (acquired using a dvLogger). It's
- mostly based on the ISSI file processing functions provided by Intuitive Surgical Inc.
+ mostly based on the ISSI file processing functions provided by Intuitive Surgical Inc. **This code is not available
+ in the public version of the thesis (see notice inside the folder).**
 * `notebooks/`: This folder contains various Jupyter notebooks, mostly used for calibration purposes. The reason the 
 calibration code is presented in the form of Jupyter notebooks is to make it easier to select the correct filters and
  debug the calibration process. Notes on how to use the notebooks can be found below.
