@@ -1,4 +1,4 @@
-opencv-contrib-python==3.4.0.12
+opencv-contrib-python==4.2.0.32
 opencv-python==4.0.0.21
 matplotlib==3.0.2
 trimesh==2.36.16
