@@ -4,6 +4,6 @@ matplotlib==3.0.2
 trimesh==2.36.16
 panda3d==1.10.0
 pandas==0.23.4
-numpy==1.15.4
+numpy==1.22.0
 pycpd==1.0.5
 scipy==1.2.0
